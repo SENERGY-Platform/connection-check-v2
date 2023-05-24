@@ -17,100 +17,125 @@
 package mqtt_test
 
 import (
+	"errors"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/known"
-	model "github.com/SENERGY-Platform/models/go/models"
+	"github.com/SENERGY-Platform/models/go/models"
 	"reflect"
 	"testing"
 )
+
+type DeviceTypeProviderMock struct {
+	DeviceTypes []models.DeviceType
+}
+
+func (this *DeviceTypeProviderMock) GetDeviceType(deviceTypeId string) (dt models.DeviceType, err error) {
+	for _, dt := range this.DeviceTypes {
+		if dt.Id == deviceTypeId {
+			return dt, nil
+		}
+	}
+	return dt, errors.New("not found")
+}
 
 func TestMqtt(t *testing.T) {
 	const shortDeviceId = "a9B7ddfMShqI26yT9hqnsw"
 	const longDeviceId = "urn:infai:ses:device:6bd07b75-d7cc-4a1a-88db-ac93f61aa7b3"
 	const protocolId = "pid"
 
-	topics, err := known.Generators["mqtt"](model.Device{
-		Id:           longDeviceId,
-		LocalId:      "foo",
-		Name:         "bar",
-		DeviceTypeId: "dt1",
-	}, model.DeviceType{
-		Id: "dt1",
-		Services: []model.Service{
-			{
-				Id:          "s1",
-				LocalId:     "{{.ShortDeviceId}}/s1",
-				Interaction: model.REQUEST,
-				ProtocolId:  protocolId,
-			},
-			{
-				Id:          "s2",
-				LocalId:     "{{.DeviceId}}/s2",
-				Interaction: model.EVENT_AND_REQUEST,
-				ProtocolId:  protocolId,
-			},
-			{
-				Id:      "s3",
-				LocalId: "s3",
-				Inputs: []model.Content{
-					{
-						Id: "i1",
-						ContentVariable: model.ContentVariable{
-							Id:         "cv1",
-							Name:       "cv1",
-							Type:       model.String,
-							FunctionId: common.CONTROLLING_FUNCTION_PREFIX + "f3",
-						},
-						Serialization:     model.JSON,
-						ProtocolSegmentId: "ps1",
-					},
-				},
-				ProtocolId: protocolId,
-			},
-			{
-				Id:         "nope",
-				LocalId:    "nope",
-				ProtocolId: protocolId,
-			},
-			{
-				Id:          "nope2",
-				LocalId:     "{{.ShortDeviceId}}/nope2",
-				Interaction: model.REQUEST,
-			},
-			{
-				Id:          "nope3",
-				LocalId:     "{{.DeviceId}}/nope3",
-				Interaction: model.EVENT_AND_REQUEST,
-			},
-			{
-				Id:      "nope4",
-				LocalId: "nope4",
-				Inputs: []model.Content{
-					{
-						Id: "i2",
-						ContentVariable: model.ContentVariable{
-							Id:         "cv2",
-							Name:       "cv2",
-							Type:       model.String,
-							FunctionId: common.CONTROLLING_FUNCTION_PREFIX + "f3",
-						},
-						Serialization:     model.JSON,
-						ProtocolSegmentId: "ps1",
-					},
-				},
-			},
+	//config configuration.Config, deviceTypeProvider DeviceTypeProvider, device model.PermDevice
+	topics, err := known.Generators["mqtt"](
+		configuration.Config{
+			HandledProtocols: []string{protocolId},
 		},
-	}, map[string]bool{protocolId: true})
+		&DeviceTypeProviderMock{
+			DeviceTypes: []models.DeviceType{
+				{
+					Id: "dt1",
+					Services: []models.Service{
+						{
+							Id:          "s1",
+							LocalId:     "{{.ShortDeviceId}}/s1",
+							Interaction: models.REQUEST,
+							ProtocolId:  protocolId,
+						},
+						{
+							Id:          "s2",
+							LocalId:     "{{.DeviceId}}/s2",
+							Interaction: models.EVENT_AND_REQUEST,
+							ProtocolId:  protocolId,
+						},
+						{
+							Id:      "s3",
+							LocalId: "s3",
+							Inputs: []models.Content{
+								{
+									Id: "i1",
+									ContentVariable: models.ContentVariable{
+										Id:         "cv1",
+										Name:       "cv1",
+										Type:       models.String,
+										FunctionId: common.CONTROLLING_FUNCTION_PREFIX + "f3",
+									},
+									Serialization:     models.JSON,
+									ProtocolSegmentId: "ps1",
+								},
+							},
+							ProtocolId: protocolId,
+						},
+						{
+							Id:         "nope",
+							LocalId:    "nope",
+							ProtocolId: protocolId,
+						},
+						{
+							Id:          "nope2",
+							LocalId:     "{{.ShortDeviceId}}/nope2",
+							Interaction: models.REQUEST,
+						},
+						{
+							Id:          "nope3",
+							LocalId:     "{{.DeviceId}}/nope3",
+							Interaction: models.EVENT_AND_REQUEST,
+						},
+						{
+							Id:      "nope4",
+							LocalId: "nope4",
+							Inputs: []models.Content{
+								{
+									Id: "i2",
+									ContentVariable: models.ContentVariable{
+										Id:         "cv2",
+										Name:       "cv2",
+										Type:       models.String,
+										FunctionId: common.CONTROLLING_FUNCTION_PREFIX + "f3",
+									},
+									Serialization:     models.JSON,
+									ProtocolSegmentId: "ps1",
+								},
+							},
+						},
+					},
+				},
+			},
+		}, model.PermDevice{
+			Id:           longDeviceId,
+			LocalId:      "foo",
+			Name:         "bar",
+			DeviceTypeId: "dt1",
+		})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	expected := []string{
+		longDeviceId + "/cmnd/+",
 		shortDeviceId + "/s1",
 		longDeviceId + "/s2",
 		longDeviceId + "/cmnd/s3",
-		longDeviceId + "/cmnd/+",
 		longDeviceId + "/cmnd/#",
 	}
 
