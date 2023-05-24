@@ -1,0 +1,19 @@
+{
+    "debug": false,
+    "topic_generator": "senergy",
+    "kafka_url": "",
+    "verne_management_url": "",
+    "device_repository_url": "https://api.senergy.infai.org/device-repository",
+    "permission_search_url": "https://api.senergy.infai.org/permissions/query",
+    "device_type_cache_expiration": "30m",
+    "handled_protocols": ["urn:infai:ses:protocol:f3a63aeb-187e-4dd9-9ef5-d97a6eb6292b"],
+    "auth_endpoint": "",
+    "auth_client_id": "",
+    "auth_client_secret": "",
+    "auth_expiration_time_buffer": 5,
+    "device_check_interval": "100ms",
+    "max_device_age": "10s",
+    "permissions_request_batch_size": 50,
+    "device_connection_log_topic": "device_log",
+    "hub_connection_log_topic": "gateway_log"
+}
