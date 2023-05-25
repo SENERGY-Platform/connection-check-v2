@@ -77,3 +77,31 @@ type Subscription struct {
 	Topic    string `json:"topic"`
 	IsOnline bool   `json:"is_online"`
 }
+
+func (this *Vernemq) CheckOnlineClient(clientId string) (onlineClientExists bool, err error) {
+	path := "/api/v1/session/show?--is_online=true&--client_id=" + url.QueryEscape(clientId) + "&--limit=1"
+	req, err := http.NewRequest("GET", this.apiUrl+path, nil)
+	if err != nil {
+		debug.PrintStack()
+		return false, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		debug.PrintStack()
+		return false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		buf, _ := io.ReadAll(resp.Body)
+		err = errors.New(resp.Status + ":" + string(buf))
+		log.Println("ERROR: unable to get result from vernemq", err)
+		return false, err
+	}
+	temp := SubscriptionWrapper{}
+	err = json.NewDecoder(resp.Body).Decode(&temp)
+	if err != nil {
+		log.Println("ERROR: unable to unmarshal result of", this.apiUrl+path)
+		return false, err
+	}
+	return len(temp.Table) > 0, nil
+}

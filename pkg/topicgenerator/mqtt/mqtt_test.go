@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package mqtt_test
+package mqtt
 
 import (
 	"errors"
@@ -26,6 +26,98 @@ import (
 	"reflect"
 	"testing"
 )
+
+func TestSortByWildcardCount(t *testing.T) {
+	result := []string{
+		"pre/1/foo/bar",
+		"pre/1/foo/+",
+		"pre/1/+/bar",
+		"pre/1/+/+",
+		"+/1/foo/bar",
+		"+/1/foo/+",
+		"+/1/+/bar",
+		"+/1/+/+",
+
+		"pre/1/foo/#",
+		"pre/1/#",
+		"pre/1/+/#",
+		"+/1/foo/#",
+		"+/1/#",
+		"+/1/+/#",
+	}
+	SortByWildcardCount(result)
+	expected := []string{
+		"pre/1/foo/bar",
+		"+/1/foo/bar",
+		"pre/1/#",
+		"pre/1/+/bar",
+		"pre/1/foo/#",
+		"pre/1/foo/+",
+		"+/1/#",
+		"+/1/+/bar",
+		"+/1/foo/#",
+		"+/1/foo/+",
+		"pre/1/+/#",
+		"pre/1/+/+",
+		"+/1/+/#",
+		"+/1/+/+",
+	}
+
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("\n%#v\n%#v\n", expected, result)
+	}
+}
+
+func TestPermuteWildcards(t *testing.T) {
+	result := PermuteWildcards("pre/device/foo/bar", []string{"device", "short_device"})
+	expected := []string{
+		"pre/device/foo/bar",
+		"pre/device/foo/+",
+		"pre/device/+/bar",
+		"pre/device/+/+",
+		"+/device/foo/bar",
+		"+/device/foo/+",
+		"+/device/+/bar",
+		"+/device/+/+",
+
+		"pre/device/foo/#",
+		"pre/device/#",
+		"pre/device/+/#",
+		"+/device/foo/#",
+		"+/device/#",
+		"+/device/+/#",
+	}
+	SortByWildcardCount(expected)
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("\n%#v\n%#v\n", expected, result)
+	}
+}
+
+func TestPermuteWildcards2(t *testing.T) {
+	result := PermuteWildcards("foo/bar/batz", []string{})
+	expected := []string{
+		"foo/bar/batz",
+		"foo/bar/+",
+		"foo/+/batz",
+		"foo/+/+",
+		"+/bar/batz",
+		"+/bar/+",
+		"+/+/batz",
+		"+/+/+",
+
+		"foo/bar/#",
+		"foo/#",
+		"#",
+		"foo/+/#",
+		"+/bar/#",
+		"+/#",
+		"+/+/#",
+	}
+	SortByWildcardCount(expected)
+	if !reflect.DeepEqual(result, expected) {
+		t.Errorf("\n%#v\n%#v\n", expected, result)
+	}
+}
 
 type DeviceTypeProviderMock struct {
 	DeviceTypes []models.DeviceType
@@ -40,7 +132,7 @@ func (this *DeviceTypeProviderMock) GetDeviceType(deviceTypeId string) (dt model
 	return dt, errors.New("not found")
 }
 
-func TestMqtt(t *testing.T) {
+func TestMqttTopicGenerator(t *testing.T) {
 	const shortDeviceId = "a9B7ddfMShqI26yT9hqnsw"
 	const longDeviceId = "urn:infai:ses:device:6bd07b75-d7cc-4a1a-88db-ac93f61aa7b3"
 	const protocolId = "pid"
@@ -132,11 +224,9 @@ func TestMqtt(t *testing.T) {
 	}
 
 	expected := []string{
-		longDeviceId + "/cmnd/+",
 		shortDeviceId + "/s1",
-		longDeviceId + "/s2",
-		longDeviceId + "/cmnd/s3",
-		longDeviceId + "/cmnd/#",
+		shortDeviceId + "/#",
+		shortDeviceId + "/+",
 	}
 
 	if !reflect.DeepEqual(topics, expected) {
