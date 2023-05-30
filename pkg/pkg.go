@@ -21,8 +21,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/auth"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/deviceprovider"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/devicetypes"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
 	"sync"
@@ -34,18 +33,33 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 		return err
 	}
 	tokengen := auth.New(config)
-	deviceTypeProvider, err := devicetypes.New(config, tokengen)
+	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, tokengen)
 	if err != nil {
 		return err
 	}
-	deviceProvider, err := deviceprovider.New(config, tokengen, deviceTypeProvider)
+	deviceProvider, err := providers.NewDeviceProvider(config, tokengen, deviceTypeProvider)
+	if err != nil {
+		return err
+	}
+	hubProvider, err := providers.NewHubProvider(config, tokengen, deviceTypeProvider)
 	if err != nil {
 		return err
 	}
 	verne := vernemq.New(config)
-	w, err := worker.New(config, logger, deviceProvider, deviceTypeProvider, verne)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, verne)
 	if err != nil {
 		return err
 	}
-	return w.RunDeviceLoop(ctx, wg)
+
+	err = w.RunDeviceLoop(ctx, wg)
+	if err != nil {
+		return err
+	}
+
+	err = w.RunHubLoop(ctx, wg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

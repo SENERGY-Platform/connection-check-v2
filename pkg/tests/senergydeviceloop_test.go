@@ -21,9 +21,8 @@ import (
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/deviceprovider"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/devicetypes"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
 	"github.com/SENERGY-Platform/models/go/models"
@@ -47,15 +46,19 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	defer cancel()
 
 	config := configuration.Config{
-		Debug:                       true,
-		TopicGenerator:              "senergy",
-		HandledProtocols:            []string{"urn:infai:ses:protocol:0"},
-		DeviceTypeCacheExpiration:   "30m",
-		MaxDeviceAge:                "10s",
-		PermissionsRequestBatchSize: 50,
-		DeviceCheckInterval:         "100ms",
-		DeviceConnectionLogTopic:    "device_log",
-		HubConnectionLogTopic:       "gateway_log",
+		Debug:                             true,
+		TopicGenerator:                    "senergy",
+		HandledProtocols:                  []string{"urn:infai:ses:protocol:0"},
+		DeviceTypeCacheExpiration:         "30m",
+		MaxDeviceAge:                      "10s",
+		PermissionsRequestDeviceBatchSize: 50,
+		DeviceCheckInterval:               "100ms",
+		DeviceConnectionLogTopic:          "device_log",
+		HubConnectionLogTopic:             "gateway_log",
+		HubCheckInterval:                  "1s",
+		MaxHubAge:                         "10s",
+		PermissionsRequestHubBatchSize:    11,
+		HubProtocolCheckCacheExpiration:   "1h",
 	}
 
 	var err error
@@ -78,9 +81,21 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
+	err = createDummyHubs(config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	time.Sleep(10 * time.Second)
 
-	err = sendInitialConnectionStates(config)
+	err = sendInitialDeviceConnectionStates(config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sendInitialHubConnectionStates(config)
 	if err != nil {
 		t.Error(err)
 		return
@@ -107,18 +122,29 @@ func TestSenergyDeviceLoop(t *testing.T) {
 			}
 			return num%2 == 0
 		},
+		CheckClientF: func(clientId string) bool {
+			if strings.HasPrefix(clientId, "unhandled-") {
+				t.Error("ERROR: unexpected client check request", clientId)
+			}
+			return strings.HasPrefix(clientId, "online-")
+		},
 	}
-	deviceTypeProvider, err := devicetypes.New(config, mock)
+	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, mock)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	deviceProvider, err := deviceprovider.New(config, mock, deviceTypeProvider)
+	deviceProvider, err := providers.NewDeviceProvider(config, mock, deviceTypeProvider)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	w, err := worker.New(config, logger, deviceProvider, deviceTypeProvider, mock)
+	hubProvider, err := providers.NewHubProvider(config, mock, deviceTypeProvider)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock)
 	if err != nil {
 		t.Error(err)
 		return
@@ -129,10 +155,16 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
+	err = w.RunHubLoop(ctx, wg)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	time.Sleep(2 * time.Minute)
 
-	mock.CheckTopicCallsMux.Lock()
-	defer mock.CheckTopicCallsMux.Unlock()
+	mock.Mutex.Lock()
+	defer mock.Mutex.Unlock()
 
 	if slices.Contains(mock.CheckTopicCalls, "command/lid-1-0/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
@@ -210,9 +242,64 @@ func TestSenergyDeviceLoop(t *testing.T) {
 			return
 		}
 	}
+
+	//check hubs
+
+	if slices.Contains(mock.CheckClientCalls, "unhandled-0") {
+		t.Errorf("%#v", mock.CheckClientCalls)
+		return
+	}
+	if !slices.Contains(mock.CheckClientCalls, "offline-0") {
+		t.Errorf("%#v", mock.CheckClientCalls)
+		return
+	}
+	if !slices.Contains(mock.CheckClientCalls, "offline-9") {
+		t.Errorf("%#v", mock.CheckClientCalls)
+		return
+	}
+	if !slices.Contains(mock.CheckClientCalls, "online-0") {
+		t.Errorf("%#v", mock.CheckClientCalls)
+		return
+	}
+	if !slices.Contains(mock.CheckClientCalls, "online-9") {
+		t.Errorf("%#v", mock.CheckClientCalls)
+		return
+	}
+
+	hubs, err := client.List[[]model.PermHub](permissions, TestToken, "hubs", permmodel.ListOptions{
+		QueryListCommons: permmodel.QueryListCommons{
+			Limit:  200,
+			Rights: "r",
+			SortBy: "name",
+		},
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if len(hubs) != 40 {
+		t.Errorf("%v, %#v\n", len(hubs), hubs)
+		return
+	}
+	for _, hub := range hubs {
+		if strings.HasPrefix(hub.Id, "online-") {
+			if !reflect.DeepEqual(hub.Annotations[worker.ConnectionStateAnnotation], true) {
+				t.Errorf("%#v", hub)
+			}
+		} else if strings.HasPrefix(hub.Id, "offline-") {
+			if !reflect.DeepEqual(hub.Annotations[worker.ConnectionStateAnnotation], false) {
+				t.Errorf("%#v", hub)
+			}
+		} else {
+			if _, ok := hub.Annotations[worker.ConnectionStateAnnotation]; ok {
+				t.Errorf("expected no anotation: %#v", hub)
+			}
+		}
+	}
+
 }
 
-func sendInitialConnectionStates(config configuration.Config) error {
+func sendInitialDeviceConnectionStates(config configuration.Config) error {
 	writer := kafka.Writer{
 		Addr:        kafka.TCP(config.KafkaUrl),
 		Topic:       config.DeviceConnectionLogTopic,
@@ -242,6 +329,41 @@ func sendInitialConnectionStates(config configuration.Config) error {
 		)
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func sendInitialHubConnectionStates(config configuration.Config) error {
+	writer := kafka.Writer{
+		Addr:        kafka.TCP(config.KafkaUrl),
+		Topic:       config.HubConnectionLogTopic,
+		MaxAttempts: 10,
+		BatchSize:   1,
+		Balancer:    &kafka.Hash{},
+	}
+	defer writer.Close()
+	for i, hub := range getDummyHubs() {
+		if !strings.HasPrefix(hub.Id, "unhandled-") {
+			b, err := json.Marshal(connectionlog.HubLog{
+				Id:        hub.Id,
+				Connected: i%2 == 0,
+				Time:      time.Now(),
+			})
+			if err != nil {
+				return err
+			}
+			err = writer.WriteMessages(
+				context.Background(),
+				kafka.Message{
+					Key:   []byte(hub.Id),
+					Value: b,
+					Time:  time.Now(),
+				},
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -289,6 +411,110 @@ func createDummyDevices(config configuration.Config) error {
 		}
 	}
 	return nil
+}
+
+func createDummyHubs(config configuration.Config) error {
+	writer := kafka.Writer{
+		Addr:        kafka.TCP(config.KafkaUrl),
+		Topic:       "hubs",
+		MaxAttempts: 10,
+		BatchSize:   1,
+		Balancer:    &kafka.Hash{},
+	}
+	defer writer.Close()
+	for _, hub := range getDummyHubs() {
+		b, err := json.Marshal(map[string]interface{}{
+			"command": "PUT",
+			"id":      hub.Id,
+			"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
+			"hub":     hub,
+		})
+		if err != nil {
+			return err
+		}
+		err = writer.WriteMessages(
+			context.Background(),
+			kafka.Message{
+				Key:   []byte(hub.Id),
+				Value: b,
+				Time:  time.Now(),
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getDummyHubs() (result []models.Hub) {
+	maxHubSize := 10
+
+	currentOnlineDevices := []string{}
+	currentOfflineDevices := []string{}
+	currentUnhandledDevices := []string{}
+
+	onlineDevices := [][]string{}
+	offlineDevices := [][]string{}
+	unhandledDevices := [][]string{}
+
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 200; j++ {
+			devicetypeindex := strconv.Itoa(i)
+			deviceindex := devicetypeindex + "-" + strconv.Itoa(j)
+			id := "urn:infai:ses:device:" + deviceindex
+
+			if i == 0 {
+				if j < 100 {
+					currentOnlineDevices = append(currentOnlineDevices, id)
+					if len(currentOnlineDevices) >= maxHubSize {
+						onlineDevices = append(onlineDevices, currentOnlineDevices)
+						currentOnlineDevices = []string{}
+					}
+				} else {
+					currentOfflineDevices = append(currentOfflineDevices, id)
+					if len(currentOfflineDevices) >= maxHubSize {
+						offlineDevices = append(offlineDevices, currentOfflineDevices)
+						currentOfflineDevices = []string{}
+					}
+				}
+			} else {
+				currentUnhandledDevices = append(currentUnhandledDevices, id)
+				if len(currentUnhandledDevices) >= maxHubSize {
+					unhandledDevices = append(unhandledDevices, currentUnhandledDevices)
+					currentUnhandledDevices = []string{}
+				}
+			}
+		}
+	}
+
+	for i, devices := range onlineDevices {
+		result = append(result, models.Hub{
+			Id:        "online-" + strconv.Itoa(i),
+			Name:      "online-" + strconv.Itoa(i),
+			Hash:      "",
+			DeviceIds: devices,
+		})
+	}
+	for i, devices := range offlineDevices {
+		result = append(result, models.Hub{
+			Id:        "offline-" + strconv.Itoa(i),
+			Name:      "offline-" + strconv.Itoa(i),
+			Hash:      "",
+			DeviceIds: devices,
+		})
+	}
+	for i, devices := range unhandledDevices {
+		result = append(result, models.Hub{
+			Id:        "unhandled-" + strconv.Itoa(i),
+			Name:      "unhandled-" + strconv.Itoa(i),
+			Hash:      "",
+			DeviceIds: devices,
+		})
+	}
+
+	return result
 }
 
 func createDummySenergylikeDeviceTypes(config configuration.Config) error {
@@ -340,9 +566,11 @@ func createDummySenergylikeDeviceTypes(config configuration.Config) error {
 }
 
 type Mock struct {
-	CheckTopicF        func(topic string) bool
-	CheckTopicCalls    []string
-	CheckTopicCallsMux sync.Mutex
+	CheckTopicF      func(topic string) bool
+	CheckTopicCalls  []string
+	CheckClientF     func(clientId string) bool
+	CheckClientCalls []string
+	Mutex            sync.Mutex
 }
 
 const TestToken = "Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIzaUtabW9aUHpsMmRtQnBJdS1vSkY4ZVVUZHh4OUFIckVOcG5CcHM5SjYwIn0.eyJqdGkiOiJiOGUyNGZkNy1jNjJlLTRhNWQtOTQ4ZC1mZGI2ZWVkM2JmYzYiLCJleHAiOjE1MzA1MzIwMzIsIm5iZiI6MCwiaWF0IjoxNTMwNTI4NDMyLCJpc3MiOiJodHRwczovL2F1dGguc2VwbC5pbmZhaS5vcmcvYXV0aC9yZWFsbXMvbWFzdGVyIiwiYXVkIjoiZnJvbnRlbmQiLCJzdWIiOiJkZDY5ZWEwZC1mNTUzLTQzMzYtODBmMy03ZjQ1NjdmODVjN2IiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJmcm9udGVuZCIsIm5vbmNlIjoiMjJlMGVjZjgtZjhhMS00NDQ1LWFmMjctNGQ1M2JmNWQxOGI5IiwiYXV0aF90aW1lIjoxNTMwNTI4NDIzLCJzZXNzaW9uX3N0YXRlIjoiMWQ3NWE5ODQtNzM1OS00MWJlLTgxYjktNzMyZDgyNzRjMjNlIiwiYWNyIjoiMCIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJjcmVhdGUtcmVhbG0iLCJhZG1pbiIsImRldmVsb3BlciIsInVtYV9hdXRob3JpemF0aW9uIiwidXNlciJdfSwicmVzb3VyY2VfYWNjZXNzIjp7Im1hc3Rlci1yZWFsbSI6eyJyb2xlcyI6WyJ2aWV3LWlkZW50aXR5LXByb3ZpZGVycyIsInZpZXctcmVhbG0iLCJtYW5hZ2UtaWRlbnRpdHktcHJvdmlkZXJzIiwiaW1wZXJzb25hdGlvbiIsImNyZWF0ZS1jbGllbnQiLCJtYW5hZ2UtdXNlcnMiLCJxdWVyeS1yZWFsbXMiLCJ2aWV3LWF1dGhvcml6YXRpb24iLCJxdWVyeS1jbGllbnRzIiwicXVlcnktdXNlcnMiLCJtYW5hZ2UtZXZlbnRzIiwibWFuYWdlLXJlYWxtIiwidmlldy1ldmVudHMiLCJ2aWV3LXVzZXJzIiwidmlldy1jbGllbnRzIiwibWFuYWdlLWF1dGhvcml6YXRpb24iLCJtYW5hZ2UtY2xpZW50cyIsInF1ZXJ5LWdyb3VwcyJdfSwiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwicm9sZXMiOlsidW1hX2F1dGhvcml6YXRpb24iLCJhZG1pbiIsImNyZWF0ZS1yZWFsbSIsImRldmVsb3BlciIsInVzZXIiLCJvZmZsaW5lX2FjY2VzcyJdLCJuYW1lIjoiZGYgZGZmZmYiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXBsIiwiZ2l2ZW5fbmFtZSI6ImRmIiwiZmFtaWx5X25hbWUiOiJkZmZmZiIsImVtYWlsIjoic2VwbEBzZXBsLmRlIn0.eOwKV7vwRrWr8GlfCPFSq5WwR_p-_rSJURXCV1K7ClBY5jqKQkCsRL2V4YhkP1uS6ECeSxF7NNOLmElVLeFyAkvgSNOUkiuIWQpMTakNKynyRfH0SrdnPSTwK2V1s1i4VjoYdyZWXKNjeT2tUUX9eCyI5qOf_Dzcai5FhGCSUeKpV0ScUj5lKrn56aamlW9IdmbFJ4VwpQg2Y843Vc0TqpjK9n_uKwuRcQd9jkKHkbwWQ-wyJEbFWXHjQ6LnM84H0CQ2fgBqPPfpQDKjGSUNaCS-jtBcbsBAWQSICwol95BuOAqVFMucx56Wm-OyQOuoQ1jaLt2t-Uxtr-C9wKJWHQ"
@@ -353,11 +581,22 @@ func (this *Mock) Access() (token string, err error) {
 
 func (this *Mock) CheckTopic(topic string) (result bool, err error) {
 	log.Println("CheckTopic", topic)
-	this.CheckTopicCallsMux.Lock()
-	defer this.CheckTopicCallsMux.Unlock()
+	this.Mutex.Lock()
+	defer this.Mutex.Unlock()
 	this.CheckTopicCalls = append(this.CheckTopicCalls, topic)
 	if this.CheckTopicF != nil {
 		return this.CheckTopicF(topic), nil
+	}
+	return true, nil
+}
+
+func (this *Mock) CheckClient(clientId string) (result bool, err error) {
+	log.Println("CheckClient", clientId)
+	this.Mutex.Lock()
+	defer this.Mutex.Unlock()
+	this.CheckClientCalls = append(this.CheckClientCalls, clientId)
+	if this.CheckClientF != nil {
+		return this.CheckClientF(clientId), nil
 	}
 	return true, nil
 }

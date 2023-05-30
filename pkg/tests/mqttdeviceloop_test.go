@@ -21,9 +21,8 @@ import (
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/deviceprovider"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/devicetypes"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
 	"github.com/SENERGY-Platform/models/go/models"
@@ -46,15 +45,19 @@ func TestMqttDeviceLoop(t *testing.T) {
 	defer cancel()
 
 	config := configuration.Config{
-		Debug:                       true,
-		TopicGenerator:              "mqtt",
-		HandledProtocols:            []string{"urn:infai:ses:protocol:0"},
-		DeviceTypeCacheExpiration:   "30m",
-		MaxDeviceAge:                "10s",
-		PermissionsRequestBatchSize: 50,
-		DeviceCheckInterval:         "100ms",
-		DeviceConnectionLogTopic:    "device_log",
-		HubConnectionLogTopic:       "gateway_log",
+		Debug:                             true,
+		TopicGenerator:                    "mqtt",
+		HandledProtocols:                  []string{"urn:infai:ses:protocol:0"},
+		DeviceTypeCacheExpiration:         "30m",
+		MaxDeviceAge:                      "10s",
+		PermissionsRequestDeviceBatchSize: 50,
+		DeviceCheckInterval:               "100ms",
+		DeviceConnectionLogTopic:          "device_log",
+		HubConnectionLogTopic:             "gateway_log",
+		HubCheckInterval:                  "-",
+		MaxHubAge:                         "10s",
+		PermissionsRequestHubBatchSize:    11,
+		HubProtocolCheckCacheExpiration:   "1h",
 	}
 
 	var err error
@@ -90,17 +93,22 @@ func TestMqttDeviceLoop(t *testing.T) {
 			return strings.HasSuffix(topic, "/+")
 		},
 	}
-	deviceTypeProvider, err := devicetypes.New(config, mock)
+	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, mock)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	deviceProvider, err := deviceprovider.New(config, mock, deviceTypeProvider)
+	deviceProvider, err := providers.NewDeviceProvider(config, mock, deviceTypeProvider)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	w, err := worker.New(config, logger, deviceProvider, deviceTypeProvider, mock)
+	hubProvider, err := providers.NewHubProvider(config, mock, deviceTypeProvider)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock)
 	if err != nil {
 		t.Error(err)
 		return
@@ -113,8 +121,8 @@ func TestMqttDeviceLoop(t *testing.T) {
 
 	time.Sleep(2 * time.Minute)
 
-	mock.CheckTopicCallsMux.Lock()
-	defer mock.CheckTopicCallsMux.Unlock()
+	mock.Mutex.Lock()
+	defer mock.Mutex.Unlock()
 
 	if len(mock.CheckTopicCalls) < 200 {
 		t.Errorf("%#v", len(mock.CheckTopicCalls))

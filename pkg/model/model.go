@@ -23,3 +23,15 @@ type PermDevice struct {
 	DeviceTypeId string                 `json:"device_type_id"`
 	Annotations  map[string]interface{} `json:"annotations"`
 }
+
+type PermHub struct {
+	Id          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	DeviceIds   []string               `json:"device_ids"`
+	Annotations map[string]interface{} `json:"annotations"`
+}
+
+type PermDeviceType struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}

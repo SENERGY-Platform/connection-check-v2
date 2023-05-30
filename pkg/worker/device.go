@@ -33,12 +33,13 @@ type Worker struct {
 	config             configuration.Config
 	logger             ConnectionLogger
 	deviceprovider     DeviceProvider
+	hubprovider        HubProvider
 	deviceTypeProvider DeviceTypeProvider
 	verne              Verne
 	topic              common.TopicGenerator
 }
 
-func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, deviceTypeProvider DeviceTypeProvider, verne Verne) (*Worker, error) {
+func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne) (*Worker, error) {
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
@@ -47,6 +48,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		config:             config,
 		logger:             logger,
 		deviceprovider:     deviceprovider,
+		hubprovider:        hubprovider,
 		deviceTypeProvider: deviceTypeProvider,
 		verne:              verne,
 		topic:              topic,
@@ -64,8 +66,13 @@ type DeviceProvider interface {
 	GetNextDevice() (device model.PermDevice, err error)
 }
 
+type HubProvider interface {
+	GetNextHub() (device model.PermHub, err error)
+}
+
 type Verne interface {
 	CheckTopic(topic string) (result bool, err error)
+	CheckClient(clientId string) (result bool, err error)
 }
 
 type DeviceTypeProvider interface {
@@ -73,6 +80,9 @@ type DeviceTypeProvider interface {
 }
 
 func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error {
+	if this.config.DeviceCheckInterval == "" || this.config.DeviceCheckInterval == "-" {
+		return nil
+	}
 	dur, err := time.ParseDuration(this.config.DeviceCheckInterval)
 	if err != nil {
 		return err

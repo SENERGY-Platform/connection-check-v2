@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package devicetypes
+package providers
 
 import (
 	"encoding/json"

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package devicetypes
+package providers
 
 import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
@@ -23,29 +23,25 @@ import (
 	"time"
 )
 
-func New(config configuration.Config, tokengen TokenGenerator) (*DeviceTypes, error) {
+func NewDeviceTypeProvider(config configuration.Config, tokengen TokenGenerator) (*DeviceTypeProvider, error) {
 	expiration, err := time.ParseDuration(config.DeviceTypeCacheExpiration)
 	if err != nil {
 		return nil, err
 	}
-	return &DeviceTypes{
+	return &DeviceTypeProvider{
 		client:   client.NewClient(config.DeviceRepositoryUrl),
 		tokengen: tokengen,
 		cache:    NewCache(expiration),
 	}, nil
 }
 
-type DeviceTypes struct {
+type DeviceTypeProvider struct {
 	client   client.Interface
 	tokengen TokenGenerator
 	cache    *Cache
 }
 
-type TokenGenerator interface {
-	Access() (token string, err error)
-}
-
-func (this *DeviceTypes) GetDeviceType(id string) (result model.DeviceType, err error) {
+func (this *DeviceTypeProvider) GetDeviceType(id string) (result model.DeviceType, err error) {
 	err = this.cache.Use("device-type."+id, func() (interface{}, error) {
 		token, err := this.tokengen.Access()
 		if err != nil {

@@ -78,7 +78,7 @@ type Subscription struct {
 	IsOnline bool   `json:"is_online"`
 }
 
-func (this *Vernemq) CheckOnlineClient(clientId string) (onlineClientExists bool, err error) {
+func (this *Vernemq) CheckClient(clientId string) (onlineClientExists bool, err error) {
 	path := "/api/v1/session/show?--is_online=true&--client_id=" + url.QueryEscape(clientId) + "&--limit=1"
 	req, err := http.NewRequest("GET", this.apiUrl+path, nil)
 	if err != nil {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package deviceprovider
+package providers
 
 import (
 	"errors"
@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-func New(config configuration.Config, tokengen TokenGenerator, devicetypes DeviceTypeProvider) (result *DeviceProvider, err error) {
+func NewDeviceProvider(config configuration.Config, tokengen TokenGenerator, devicetypes DeviceTypeProviderInterface) (result *DeviceProvider, err error) {
 	result = &DeviceProvider{
 		config:      config,
 		tokengen:    tokengen,
@@ -50,7 +50,7 @@ func New(config configuration.Config, tokengen TokenGenerator, devicetypes Devic
 type DeviceProvider struct {
 	config           configuration.Config
 	tokengen         TokenGenerator
-	devicetypes      DeviceTypeProvider
+	devicetypes      DeviceTypeProviderInterface
 	permissions      client.Client
 	batch            []model.PermDevice
 	nextBatchIndex   int
@@ -65,7 +65,7 @@ type TokenGenerator interface {
 	Access() (token string, err error)
 }
 
-type DeviceTypeProvider interface {
+type DeviceTypeProviderInterface interface {
 	GetDeviceType(deviceTypeId string) (dt models.DeviceType, err error)
 }
 
@@ -138,7 +138,7 @@ func (this *DeviceProvider) loadBatch() error {
 	this.lastRequest = time.Now()
 	list, err := client.List[[]model.PermDevice](this.permissions, token, "devices", permmodel.ListOptions{
 		QueryListCommons: permmodel.QueryListCommons{
-			Limit:  this.config.PermissionsRequestBatchSize,
+			Limit:  this.config.PermissionsRequestDeviceBatchSize,
 			After:  after,
 			Rights: "r",
 			SortBy: "local_id",
@@ -154,7 +154,7 @@ func (this *DeviceProvider) loadBatch() error {
 		this.lastRequest = time.Now()
 		list, err = client.List[[]model.PermDevice](this.permissions, token, "devices", permmodel.ListOptions{
 			QueryListCommons: permmodel.QueryListCommons{
-				Limit:  this.config.PermissionsRequestBatchSize,
+				Limit:  this.config.PermissionsRequestDeviceBatchSize,
 				Rights: "r",
 				SortBy: "local_id",
 			},

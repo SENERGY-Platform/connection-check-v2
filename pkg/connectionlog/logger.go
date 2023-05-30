@@ -36,7 +36,7 @@ type Logger struct {
 func New(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) (logger *Logger, err error) {
 	return &Logger{
 		devices: getProducer(ctx, wg, config.KafkaUrl, config.DeviceConnectionLogTopic, config.Debug),
-		hubs:    getProducer(ctx, wg, config.KafkaUrl, config.DeviceConnectionLogTopic, config.Debug),
+		hubs:    getProducer(ctx, wg, config.KafkaUrl, config.HubConnectionLogTopic, config.Debug),
 	}, nil
 }
 
