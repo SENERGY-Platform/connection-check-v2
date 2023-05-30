@@ -19,6 +19,8 @@ package providers
 import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	devicerepo "github.com/SENERGY-Platform/device-repository/lib/client"
+	devicemodel "github.com/SENERGY-Platform/device-repository/lib/model"
 	"github.com/SENERGY-Platform/permission-search/lib/client"
 	permmodel "github.com/SENERGY-Platform/permission-search/lib/model"
 	"log"
@@ -38,6 +40,7 @@ func NewHubProvider(config configuration.Config, tokengen TokenGenerator, device
 		devicetypes: devicetypes,
 		permissions: client.NewClient(config.PermissionSearchUrl),
 		cache:       NewCache(expiration),
+		devicerepo:  devicerepo.NewClient(config.DeviceRepositoryUrl),
 	}
 	result.handledProtocols = map[string]bool{}
 	for _, protocolId := range config.HandledProtocols {
@@ -54,6 +57,7 @@ type HubProvider struct {
 	config           configuration.Config
 	tokengen         TokenGenerator
 	devicetypes      DeviceTypeProviderInterface
+	devicerepo       devicerepo.Interface
 	permissions      client.Client
 	batch            []model.PermHub
 	nextBatchIndex   int
@@ -165,65 +169,23 @@ func (this *HubProvider) HubMatchesProtocol(hub model.PermHub) (result bool, err
 			return nil, err
 		}
 
-		//get list of devices by hub.DeviceIds
-		devices, _, err := client.Query[[]model.PermDevice](this.permissions, token, permmodel.QueryMessage{
-			Resource: "devices",
-			ListIds: &permmodel.QueryListIds{
-				QueryListCommons: permmodel.QueryListCommons{
-					Limit:  len(hub.DeviceIds),
-					Rights: "r",
-					SortBy: "name",
-				},
-				Ids: hub.DeviceIds,
-			},
-		})
+		if len(hub.DeviceIds) == 0 {
+			return false, nil
+		}
+
+		device, err, _ := this.devicerepo.ReadDevice(hub.DeviceIds[0], token, devicemodel.READ)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return nil, err
 		}
 
-		//create list of device-type ids from list of devices
-		deviceTypeIds := []string{}
-		for _, d := range devices {
-			deviceTypeIds = append(deviceTypeIds, d.DeviceTypeId)
-		}
-		deviceTypeIds = distinct(deviceTypeIds)
-
-		//get list of device types where dt.id IS_IN device-type-id-list AND protocols contains handled-protocols
-		deviceTypes, _, err := client.Query[[]model.PermDeviceType](this.permissions, token, permmodel.QueryMessage{
-			Resource: "device-types",
-			Find: &permmodel.QueryFind{
-				QueryListCommons: permmodel.QueryListCommons{
-					Limit:  1,
-					Offset: 0,
-					Rights: "r",
-					SortBy: "name",
-				},
-				Filter: &permmodel.Selection{
-					And: []permmodel.Selection{
-						{
-							Condition: permmodel.ConditionConfig{
-								Feature:   "id",
-								Operation: permmodel.QueryAnyValueInFeatureOperation,
-								Value:     deviceTypeIds,
-							},
-						},
-						{
-							Condition: permmodel.ConditionConfig{
-								Feature:   "features.protocols",
-								Operation: permmodel.QueryAnyValueInFeatureOperation,
-								Value:     this.config.HandledProtocols,
-							},
-						},
-					},
-				},
-			},
-		})
+		dt, err := this.devicetypes.GetDeviceType(device.DeviceTypeId)
 		if err != nil {
+			log.Println("ERROR:", err)
 			return nil, err
 		}
-		//if len(dt-list) > 0: hub is used in connector
-		return len(deviceTypes) > 0, nil
+
+		return DeviceTypeUsesHandledProtocol(dt, this.handledProtocols), nil
 	}, &result)
 	return
 }
