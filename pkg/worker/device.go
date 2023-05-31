@@ -122,6 +122,9 @@ func (this *Worker) runDeviceCheck() error {
 		return err
 	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
+	if err == common.NoSubscriptionExpected {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
