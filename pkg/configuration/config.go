@@ -27,27 +27,29 @@ import (
 )
 
 type Config struct {
-	Debug                             bool     `json:"debug"`
-	TopicGenerator                    string   `json:"topic_generator"`
-	KafkaUrl                          string   `json:"kafka_url"`
-	DeviceRepositoryUrl               string   `json:"device_repository_url"`
-	PermissionSearchUrl               string   `json:"permission_search_url"`
-	VerneManagementUrl                string   `json:"verne_management_url"`
-	HandledProtocols                  []string `json:"handled_protocols"`
-	AuthEndpoint                      string   `json:"auth_endpoint"`
-	AuthClientId                      string   `json:"auth_client_id"`
-	AuthClientSecret                  string   `json:"auth_client_secret"`
-	AuthExpirationTimeBuffer          float64  `json:"auth_expiration_time_buffer"`
-	DeviceTypeCacheExpiration         string   `json:"device_type_cache_expiration"`
-	HubProtocolCheckCacheExpiration   string   `json:"hub_protocol_check_cache_expiration"`
-	MaxDeviceAge                      string   `json:"max_device_age"`
-	MaxHubAge                         string   `json:"max_hub_age"`
-	PermissionsRequestDeviceBatchSize int      `json:"permissions_request_device_batch_size"`
-	PermissionsRequestHubBatchSize    int      `json:"permissions_request_hub_batch_size"`
-	DeviceCheckInterval               string   `json:"device_check_interval"`
-	HubCheckInterval                  string   `json:"hub_check_interval"`
-	DeviceConnectionLogTopic          string   `json:"device_connection_log_topic"`
-	HubConnectionLogTopic             string   `json:"hub_connection_log_topic"`
+	Debug                              bool     `json:"debug"`
+	TopicGenerator                     string   `json:"topic_generator"`
+	KafkaUrl                           string   `json:"kafka_url"`
+	DeviceRepositoryUrl                string   `json:"device_repository_url"`
+	PermissionSearchUrl                string   `json:"permission_search_url"`
+	VerneManagementUrl                 string   `json:"verne_management_url"`
+	HandledProtocols                   []string `json:"handled_protocols"`
+	AuthEndpoint                       string   `json:"auth_endpoint"`
+	AuthClientId                       string   `json:"auth_client_id"`
+	AuthClientSecret                   string   `json:"auth_client_secret"`
+	AuthExpirationTimeBuffer           float64  `json:"auth_expiration_time_buffer"`
+	DeviceTypeCacheExpiration          string   `json:"device_type_cache_expiration"`
+	HubProtocolCheckCacheExpiration    string   `json:"hub_protocol_check_cache_expiration"`
+	MaxDeviceAge                       string   `json:"max_device_age"`
+	MaxHubAge                          string   `json:"max_hub_age"`
+	PermissionsRequestDeviceBatchSize  int      `json:"permissions_request_device_batch_size"`
+	PermissionsRequestHubBatchSize     int      `json:"permissions_request_hub_batch_size"`
+	DeviceCheckInterval                string   `json:"device_check_interval"`
+	HubCheckInterval                   string   `json:"hub_check_interval"`
+	DeviceConnectionLogTopic           string   `json:"device_connection_log_topic"`
+	HubConnectionLogTopic              string   `json:"hub_connection_log_topic"`
+	DeviceCheckTopicHintExpiration     string   `json:"device_check_topic_hint_expiration"`
+	UseDeviceCheckTopicHintExclusively bool     `json:"use_device_check_topic_hint_exclusively"`
 }
 
 // loads config from json in location and used environment variables (e.g KafkaUrl --> KAFKA_URL)

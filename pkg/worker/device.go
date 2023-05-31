@@ -24,6 +24,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/models/go/models"
+	"github.com/patrickmn/go-cache"
 	"log"
 	"sync"
 	"time"
@@ -37,12 +38,17 @@ type Worker struct {
 	deviceTypeProvider DeviceTypeProvider
 	verne              Verne
 	topic              common.TopicGenerator
+	hintstore          *cache.Cache
 }
 
 func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne) (*Worker, error) {
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
+	}
+	deviceCheckTopicHintExpiration, err := time.ParseDuration(config.DeviceCheckTopicHintExpiration)
+	if err != nil {
+		return nil, err
 	}
 	return &Worker{
 		config:             config,
@@ -52,6 +58,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		deviceTypeProvider: deviceTypeProvider,
 		verne:              verne,
 		topic:              topic,
+		hintstore:          cache.New(deviceCheckTopicHintExpiration, time.Minute),
 	}, nil
 }
 
@@ -118,7 +125,7 @@ func (this *Worker) runDeviceCheck() error {
 	if err != nil {
 		return err
 	}
-	isOnline, err := this.checkTopics(topics)
+	isOnline, err := this.checkTopics(device, topics)
 	if err != nil {
 		return err
 	}
@@ -137,13 +144,24 @@ func (this *Worker) runDeviceCheck() error {
 	return nil
 }
 
-func (this *Worker) checkTopics(topics []string) (onlineSubscriptionExists bool, err error) {
+func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlineSubscriptionExists bool, err error) {
+	hintTopic, useHint := this.getHint(device)
+	if useHint {
+		onlineSubscriptionExists, err = this.verne.CheckTopic(hintTopic)
+		if onlineSubscriptionExists {
+			return
+		}
+		if this.config.UseDeviceCheckTopicHintExclusively {
+			return
+		}
+	}
 	for _, topic := range topics {
 		onlineSubscriptionExists, err = this.verne.CheckTopic(topic)
 		if err != nil {
 			return
 		}
 		if onlineSubscriptionExists {
+			this.storeHint(device, topic)
 			return
 		}
 	}
