@@ -21,8 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -35,18 +33,11 @@ func Start(ctx context.Context, config configuration.Config) (metrics *Metrics, 
 		}
 	}()
 
-	reg := prometheus.NewRegistry()
-	handler := promhttp.HandlerFor(
-		reg,
-		promhttp.HandlerOpts{
-			Registry: reg,
-		},
-	)
-	metrics = NewMetricsWithRegistry(config.TopicGenerator, reg)
+	metrics = NewMetrics(config.TopicGenerator)
 
 	router := http.NewServeMux()
 
-	router.Handle("/metrics", handler)
+	router.Handle("/metrics", metrics)
 
 	server := &http.Server{Addr: ":" + config.PrometheusPort, Handler: router}
 	go func() {

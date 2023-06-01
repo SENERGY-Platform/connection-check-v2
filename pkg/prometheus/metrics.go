@@ -16,7 +16,12 @@
 
 package prometheus
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"log"
+	"net/http"
+)
 
 type Metrics struct {
 	TopicsChecked       prometheus.Counter
@@ -35,14 +40,18 @@ type Metrics struct {
 	SendDeviceDisconnected prometheus.Counter
 	SendHubConnected       prometheus.Counter
 	SendHubDisconnected    prometheus.Counter
+	httphandler            http.Handler
 }
 
 func NewMetrics(prefix string) *Metrics {
-	return NewMetricsWithRegistry(prefix, prometheus.NewRegistry())
-}
-
-func NewMetricsWithRegistry(prefix string, reg prometheus.Registerer) *Metrics {
+	reg := prometheus.NewRegistry()
 	m := &Metrics{
+		httphandler: promhttp.HandlerFor(
+			reg,
+			promhttp.HandlerOpts{
+				Registry: reg,
+			},
+		),
 		TopicsChecked: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: prefix + "_topics_checked",
 			Help: "count of devices checked since connection check startup",
@@ -107,4 +116,9 @@ func NewMetricsWithRegistry(prefix string, reg prometheus.Registerer) *Metrics {
 	reg.MustRegister(m.SendHubDisconnected)
 
 	return m
+}
+
+func (this *Metrics) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	log.Printf("%v [%v] %v \n", request.RemoteAddr, request.Method, request.URL)
+	this.httphandler.ServeHTTP(writer, request)
 }
