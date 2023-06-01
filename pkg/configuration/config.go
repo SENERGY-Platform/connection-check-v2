@@ -27,6 +27,7 @@ import (
 )
 
 type Config struct {
+	PrometheusPort                     string   `json:"prometheus_port"`
 	Debug                              bool     `json:"debug"`
 	TopicGenerator                     string   `json:"topic_generator"`
 	KafkaUrl                           string   `json:"kafka_url"`

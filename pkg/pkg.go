@@ -21,6 +21,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/auth"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
@@ -28,7 +29,12 @@ import (
 )
 
 func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) error {
-	logger, err := connectionlog.New(ctx, wg, config)
+	metrics, err := prometheus.Start(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	logger, err := connectionlog.New(ctx, wg, config, metrics)
 	if err != nil {
 		return err
 	}
@@ -45,8 +51,8 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	if err != nil {
 		return err
 	}
-	verne := vernemq.New(config)
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, verne)
+	verne := vernemq.New(config, metrics)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, verne, metrics)
 	if err != nil {
 		return err
 	}

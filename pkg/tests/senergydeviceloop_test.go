@@ -22,6 +22,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
@@ -30,7 +31,9 @@ import (
 	permmodel "github.com/SENERGY-Platform/permission-search/lib/model"
 	"github.com/segmentio/kafka-go"
 	"golang.org/x/exp/slices"
+	"io"
 	"log"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -61,6 +64,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		HubProtocolCheckCacheExpiration:    "1h",
 		DeviceCheckTopicHintExpiration:     "1h",
 		UseDeviceCheckTopicHintExclusively: false,
+		PrometheusPort:                     "8080",
 	}
 
 	var err error
@@ -104,8 +108,13 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	}
 
 	time.Sleep(10 * time.Second)
+	metrics, err := prometheus.Start(ctx, config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
-	logger, err := connectionlog.New(ctx, wg, config)
+	logger, err := connectionlog.New(ctx, wg, config, metrics)
 	if err != nil {
 		t.Error(err)
 		return
@@ -146,7 +155,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock, metrics)
 	if err != nil {
 		t.Error(err)
 		return
@@ -299,6 +308,33 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		}
 	}
 
+	resp, err := http.Get("http://localhost:8080/metrics")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	pl, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	payload := string(pl)
+	if !strings.Contains(payload, "senergy_send_device_connected_count 50") {
+		t.Error(payload)
+		return
+	}
+	if !strings.Contains(payload, "senergy_send_device_disconnected_count 50") {
+		t.Error(payload)
+		return
+	}
+	if !strings.Contains(payload, "senergy_send_hub_connected_count 5") {
+		t.Error(payload)
+		return
+	}
+	if !strings.Contains(payload, "senergy_send_hub_disconnected_count 5") {
+		t.Error(payload)
+		return
+	}
 }
 
 func sendInitialDeviceConnectionStates(config configuration.Config) error {

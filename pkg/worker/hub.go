@@ -57,6 +57,8 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 func (this *Worker) runHubCheck() error {
+	this.metrics.HubsChecked.Inc()
+	start := time.Now()
 	hub, err := this.hubprovider.GetNextHub()
 	if err != nil {
 		return err
@@ -65,6 +67,7 @@ func (this *Worker) runHubCheck() error {
 	if err != nil {
 		return err
 	}
+	this.metrics.HubCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	annotation, ok := hub.Annotations[ConnectionStateAnnotation]
 	if !ok {
 		return this.updateHubState(hub, isOnline)

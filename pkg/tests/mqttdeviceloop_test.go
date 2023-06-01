@@ -22,6 +22,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
@@ -84,7 +85,13 @@ func TestMqttDeviceLoop(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	logger, err := connectionlog.New(ctx, wg, config)
+	metrics, err := prometheus.Start(ctx, config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	logger, err := connectionlog.New(ctx, wg, config, metrics)
 	if err != nil {
 		t.Error(err)
 		return
@@ -110,7 +117,7 @@ func TestMqttDeviceLoop(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock, metrics)
 	if err != nil {
 		t.Error(err)
 		return

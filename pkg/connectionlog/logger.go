@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
@@ -31,12 +32,14 @@ import (
 type Logger struct {
 	devices *kafka.Writer
 	hubs    *kafka.Writer
+	metrics *prometheus.Metrics
 }
 
-func New(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) (logger *Logger, err error) {
+func New(ctx context.Context, wg *sync.WaitGroup, config configuration.Config, metrics *prometheus.Metrics) (logger *Logger, err error) {
 	return &Logger{
 		devices: getProducer(ctx, wg, config.KafkaUrl, config.DeviceConnectionLogTopic, config.Debug),
 		hubs:    getProducer(ctx, wg, config.KafkaUrl, config.HubConnectionLogTopic, config.Debug),
+		metrics: metrics,
 	}, nil
 }
 
@@ -68,6 +71,8 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 }
 
 func (this *Logger) LogDeviceDisconnect(id string) error {
+	this.metrics.SendDeviceDisconnected.Inc()
+	log.Printf("log device %v as disconnected", id)
 	b, err := json.Marshal(DeviceLog{
 		Connected: false,
 		Id:        id,
@@ -87,6 +92,8 @@ func (this *Logger) LogDeviceDisconnect(id string) error {
 }
 
 func (this *Logger) LogDeviceConnect(id string) error {
+	this.metrics.SendDeviceConnected.Inc()
+	log.Printf("log device %v as connected", id)
 	b, err := json.Marshal(DeviceLog{
 		Connected: true,
 		Id:        id,
@@ -106,6 +113,8 @@ func (this *Logger) LogDeviceConnect(id string) error {
 }
 
 func (this *Logger) LogHubConnect(id string) error {
+	this.metrics.SendHubConnected.Inc()
+	log.Printf("log hub %v as connected", id)
 	b, err := json.Marshal(HubLog{
 		Connected: true,
 		Id:        id,
@@ -125,6 +134,8 @@ func (this *Logger) LogHubConnect(id string) error {
 }
 
 func (this *Logger) LogHubDisconnect(id string) error {
+	this.metrics.SendHubDisconnected.Inc()
+	log.Printf("log hub %v as disconnected", id)
 	b, err := json.Marshal(HubLog{
 		Connected: false,
 		Id:        id,

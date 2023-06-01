@@ -19,6 +19,7 @@ package vernemq
 import (
 	"context"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"log"
@@ -46,10 +47,12 @@ func TestVernemqApi(t *testing.T) {
 		return
 	}
 
+	metrics := prometheus.NewMetrics("test")
+
 	verne := New(configuration.Config{
 		Debug:              true,
 		VerneManagementUrl: managementUrl,
-	})
+	}, metrics)
 
 	t.Run("check known", func(t *testing.T) {
 		for _, topic := range knownTopics {

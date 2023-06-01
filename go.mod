@@ -10,6 +10,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/google/uuid v1.3.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/prometheus/client_golang v1.15.1
 	github.com/segmentio/kafka-go v0.4.40
 	github.com/testcontainers/testcontainers-go v0.19.0
 	golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
@@ -49,7 +50,6 @@ require (
 	github.com/opencontainers/runc v1.1.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/prometheus/client_golang v1.15.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect

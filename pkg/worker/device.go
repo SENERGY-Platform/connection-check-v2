@@ -21,6 +21,7 @@ import (
 	"errors"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/models/go/models"
@@ -39,9 +40,10 @@ type Worker struct {
 	verne              Verne
 	topic              common.TopicGenerator
 	hintstore          *cache.Cache
+	metrics            *prometheus.Metrics
 }
 
-func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne) (*Worker, error) {
+func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne, metrics *prometheus.Metrics) (*Worker, error) {
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
@@ -59,6 +61,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		verne:              verne,
 		topic:              topic,
 		hintstore:          cache.New(deviceCheckTopicHintExpiration, time.Minute),
+		metrics:            metrics,
 	}, nil
 }
 
@@ -117,6 +120,8 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 const ConnectionStateAnnotation = "connected"
 
 func (this *Worker) runDeviceCheck() error {
+	this.metrics.DevicesChecked.Inc()
+	start := time.Now()
 	device, err := this.deviceprovider.GetNextDevice()
 	if err != nil {
 		return err
@@ -132,6 +137,7 @@ func (this *Worker) runDeviceCheck() error {
 	if err != nil {
 		return err
 	}
+	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	annotation, ok := device.Annotations[ConnectionStateAnnotation]
 	if !ok {
 		return this.updateDeviceState(device, isOnline)
