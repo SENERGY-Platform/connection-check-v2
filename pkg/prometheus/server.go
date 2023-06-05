@@ -33,7 +33,7 @@ func Start(ctx context.Context, config configuration.Config) (metrics *Metrics, 
 		}
 	}()
 
-	metrics = NewMetrics(config.TopicGenerator)
+	metrics = NewMetrics("connection_check_" + config.TopicGenerator)
 
 	router := http.NewServeMux()
 
