@@ -51,6 +51,7 @@ type Config struct {
 	HubConnectionLogTopic              string   `json:"hub_connection_log_topic"`
 	DeviceCheckTopicHintExpiration     string   `json:"device_check_topic_hint_expiration"`
 	UseDeviceCheckTopicHintExclusively bool     `json:"use_device_check_topic_hint_exclusively"`
+	ExportTotalConnected               bool     `json:"export_total_connected"`
 }
 
 // loads config from json in location and used environment variables (e.g KafkaUrl --> KAFKA_URL)

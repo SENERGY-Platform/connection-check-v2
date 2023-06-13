@@ -40,7 +40,13 @@ type Metrics struct {
 	SendDeviceDisconnected prometheus.Counter
 	SendHubConnected       prometheus.Counter
 	SendHubDisconnected    prometheus.Counter
-	httphandler            http.Handler
+
+	TotalConnected    prometheus.Gauge
+	TotalDisconnected prometheus.Gauge
+
+	httphandler http.Handler
+
+	onMetricsServeRequest func()
 }
 
 func NewMetrics(prefix string) *Metrics {
@@ -100,6 +106,14 @@ func NewMetrics(prefix string) *Metrics {
 			Name: prefix + "_send_hub_disconnected_count",
 			Help: "count of send hub disconnected messages since connection check startup",
 		}),
+		TotalConnected: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: prefix + "_total_connected",
+			Help: "total count of all connected devices",
+		}),
+		TotalDisconnected: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: prefix + "_total_disconnected",
+			Help: "total count of all disconnected devices",
+		}),
 	}
 
 	reg.MustRegister(m.TopicsChecked)
@@ -114,11 +128,20 @@ func NewMetrics(prefix string) *Metrics {
 	reg.MustRegister(m.SendDeviceDisconnected)
 	reg.MustRegister(m.SendHubConnected)
 	reg.MustRegister(m.SendHubDisconnected)
+	reg.MustRegister(m.TotalConnected)
+	reg.MustRegister(m.TotalDisconnected)
 
 	return m
 }
 
+func (this *Metrics) SetOnMetricsServeRequest(f func()) {
+	this.onMetricsServeRequest = f
+}
+
 func (this *Metrics) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	log.Printf("%v [%v] %v \n", request.RemoteAddr, request.Method, request.URL)
+	if this.onMetricsServeRequest != nil {
+		this.onMetricsServeRequest()
+	}
 	this.httphandler.ServeHTTP(writer, request)
 }

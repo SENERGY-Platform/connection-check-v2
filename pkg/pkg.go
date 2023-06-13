@@ -25,6 +25,9 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
+	"github.com/SENERGY-Platform/permission-search/lib/client"
+	"log"
+	"runtime/debug"
 	"sync"
 )
 
@@ -34,11 +37,18 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 		return err
 	}
 
+	tokengen := auth.New(config)
+
+	if config.ExportTotalConnected {
+		perm := client.NewClient(config.PermissionSearchUrl)
+		metrics.SetOnMetricsServeRequest(getOnMetricsServeRequestHandler(tokengen, perm, metrics))
+	}
+
 	logger, err := connectionlog.New(ctx, wg, config, metrics)
 	if err != nil {
 		return err
 	}
-	tokengen := auth.New(config)
+
 	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, tokengen)
 	if err != nil {
 		return err
@@ -68,4 +78,40 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	}
 
 	return nil
+}
+
+func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client, metrics *prometheus.Metrics) func() {
+	return func() {
+		token, err := tokengen.Access()
+		if err != nil {
+			log.Println("ERROR:", err)
+			debug.PrintStack()
+			return
+		}
+		connected, err := perm.Total(token, "devices", client.ListOptions{
+			Selection: &client.FeatureSelection{
+				Feature: "annotations.connected",
+				Value:   "true",
+			},
+		})
+		if err != nil {
+			log.Println("ERROR:", err)
+			debug.PrintStack()
+			return
+		}
+		metrics.TotalConnected.Set(float64(connected))
+
+		disconnected, err := perm.Total(token, "devices", client.ListOptions{
+			Selection: &client.FeatureSelection{
+				Feature: "annotations.connected",
+				Value:   "false",
+			},
+		})
+		if err != nil {
+			log.Println("ERROR:", err)
+			debug.PrintStack()
+			return
+		}
+		metrics.TotalDisconnected.Set(float64(disconnected))
+	}
 }

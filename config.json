@@ -22,5 +22,6 @@
     "device_connection_log_topic": "device_log",
     "hub_connection_log_topic": "gateway_log",
     "device_check_topic_hint_expiration": "1h",
-    "use_device_check_topic_hint_exclusively": true
+    "use_device_check_topic_hint_exclusively": true,
+    "export_total_connected": true
 }
