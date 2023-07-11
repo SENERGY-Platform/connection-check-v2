@@ -74,10 +74,12 @@ type ConnectionLogger interface {
 
 type DeviceProvider interface {
 	GetNextDevice() (device model.PermDevice, err error)
+	GetDevice(id string) (result model.PermDevice, err error)
 }
 
 type HubProvider interface {
 	GetNextHub() (device model.PermHub, err error)
+	GetHub(id string) (result model.PermHub, err error)
 }
 
 type Verne interface {
@@ -178,6 +180,19 @@ func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlin
 }
 
 func (this *Worker) updateDeviceState(device model.PermDevice, online bool) error {
+	reloaded, err := this.deviceprovider.GetDevice(device.Id)
+	if err != nil {
+		log.Println("WARNING: unable to reload device info", err)
+	}
+	annotation, ok := reloaded.Annotations[ConnectionStateAnnotation]
+	if ok {
+		currentState, ok := annotation.(bool)
+		if !ok {
+			log.Printf("WARNING: unexpected device state anotation in %#v", device)
+		} else if currentState == online {
+			return nil //connection check has been too slow and the device has already the new online state
+		}
+	}
 	if online {
 		return this.logger.LogDeviceConnect(device.Id)
 	} else {

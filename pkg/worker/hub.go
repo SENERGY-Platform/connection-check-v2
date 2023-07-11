@@ -84,6 +84,19 @@ func (this *Worker) runHubCheck() error {
 }
 
 func (this *Worker) updateHubState(hub model.PermHub, online bool) error {
+	reloaded, err := this.hubprovider.GetHub(hub.Id)
+	if err != nil {
+		log.Println("WARNING: unable to reload device info", err)
+	}
+	annotation, ok := reloaded.Annotations[ConnectionStateAnnotation]
+	if ok {
+		currentState, ok := annotation.(bool)
+		if !ok {
+			log.Printf("WARNING: unexpected hub state anotation in %#v", hub)
+		} else if currentState == online {
+			return nil //connection check has been too slow and the device has already the new online state
+		}
+	}
 	if online {
 		return this.logger.LogHubConnect(hub.Id)
 	} else {

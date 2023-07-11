@@ -117,6 +117,30 @@ func (this *DeviceProvider) deviceMatchesProtocol(device model.PermDevice) bool 
 	return DeviceTypeUsesHandledProtocol(dt, this.handledProtocols)
 }
 
+func (this *DeviceProvider) GetDevice(id string) (result model.PermDevice, err error) {
+	token, err := this.tokengen.Access()
+	if err != nil {
+		return result, err
+	}
+	temp, _, err := client.Query[[]model.PermDevice](this.permissions, token, permmodel.QueryMessage{
+		Resource: "devices",
+		ListIds: &permmodel.QueryListIds{
+			QueryListCommons: permmodel.QueryListCommons{
+				Limit:  1,
+				Offset: 0,
+			},
+			Ids: []string{id},
+		},
+	})
+	if err != nil {
+		return result, err
+	}
+	if len(temp) == 1 {
+		return temp[0], nil
+	}
+	return result, errors.New("device not found")
+}
+
 func (this *DeviceProvider) loadBatch() error {
 	if this.config.Debug {
 		log.Println("load batch")

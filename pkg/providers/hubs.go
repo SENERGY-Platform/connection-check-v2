@@ -17,6 +17,7 @@
 package providers
 
 import (
+	"errors"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	devicerepo "github.com/SENERGY-Platform/device-repository/lib/client"
@@ -108,6 +109,30 @@ func (this *HubProvider) getNextHubFromBatch() (hub model.PermHub, err error) {
 	index := this.nextBatchIndex
 	this.nextBatchIndex = this.nextBatchIndex + 1
 	return this.batch[index], nil
+}
+
+func (this *HubProvider) GetHub(id string) (result model.PermHub, err error) {
+	token, err := this.tokengen.Access()
+	if err != nil {
+		return result, err
+	}
+	temp, _, err := client.Query[[]model.PermHub](this.permissions, token, permmodel.QueryMessage{
+		Resource: "hubs",
+		ListIds: &permmodel.QueryListIds{
+			QueryListCommons: permmodel.QueryListCommons{
+				Limit:  1,
+				Offset: 0,
+			},
+			Ids: []string{id},
+		},
+	})
+	if err != nil {
+		return result, err
+	}
+	if len(temp) == 1 {
+		return temp[0], nil
+	}
+	return result, errors.New("hub not found")
 }
 
 func (this *HubProvider) loadBatch() error {
