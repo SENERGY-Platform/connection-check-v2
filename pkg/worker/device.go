@@ -99,6 +99,7 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 	if err != nil {
 		return err
 	}
+	errHandler := getErrorHandler(this.config)
 	t := time.NewTicker(dur)
 	wg.Add(1)
 	go func() {
@@ -106,10 +107,7 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 		for {
 			select {
 			case <-t.C:
-				err = this.runDeviceCheck()
-				if err != nil {
-					log.Println("ERROR:", err)
-				}
+				errHandler(this.runDeviceCheck())
 			case <-ctx.Done():
 				t.Stop()
 				return
@@ -117,6 +115,41 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 		}
 	}()
 	return nil
+}
+
+func getErrorHandler(config configuration.Config) func(error) {
+	if config.MaxErrorCountTilFatal >= 0 {
+		return getFatalErrOnRepeatHandler(config.MaxErrorCountTilFatal)
+	} else {
+		return getLogErrorHandler()
+	}
+}
+
+func getLogErrorHandler() func(error) {
+	return func(err error) {
+		if err != nil {
+			log.Println("ERROR:", err)
+		}
+	}
+}
+
+func getFatalErrOnRepeatHandler(maxCount int64) func(error) {
+	var counter int64 = 0
+	mux := sync.Mutex{}
+	return func(err error) {
+		mux.Lock()
+		defer mux.Unlock()
+		if err == nil {
+			counter = 0
+		} else {
+			counter = counter + 1
+			if counter > maxCount {
+				log.Fatalln("ERROR:", err)
+			} else {
+				log.Println("ERROR:", err)
+			}
+		}
+	}
 }
 
 const ConnectionStateAnnotation = "connected"

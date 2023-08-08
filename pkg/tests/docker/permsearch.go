@@ -22,4 +22,4 @@ import (
 
 var PermSearch = docker.PermissionSearch
 
-var Elasticsearch = docker.Elasticsearch
+var OpenSearch = docker.OpenSearch

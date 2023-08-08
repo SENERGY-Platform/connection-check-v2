@@ -36,6 +36,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
+	errHandler := getErrorHandler(this.config)
 	t := time.NewTicker(dur)
 	wg.Add(1)
 	go func() {
@@ -43,10 +44,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 		for {
 			select {
 			case <-t.C:
-				err = this.runHubCheck()
-				if err != nil {
-					log.Println("ERROR:", err)
-				}
+				errHandler(this.runHubCheck())
 			case <-ctx.Done():
 				t.Stop()
 				return

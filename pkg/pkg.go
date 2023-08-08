@@ -39,6 +39,12 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 
 	tokengen := auth.New(config)
 
+	//try config
+	_, err = tokengen.Access()
+	if err != nil {
+		return err
+	}
+
 	if config.ExportTotalConnected {
 		perm := client.NewClient(config.PermissionSearchUrl)
 		metrics.SetOnMetricsServeRequest(getOnMetricsServeRequestHandler(tokengen, perm, metrics))
