@@ -23,7 +23,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/known"
 	"github.com/SENERGY-Platform/mqtt-platform-connector/lib/shortid"
 	"github.com/SENERGY-Platform/mqtt-platform-connector/lib/topic"
-	"golang.org/x/exp/slices"
+	"slices"
 	"sort"
 	"strings"
 )
