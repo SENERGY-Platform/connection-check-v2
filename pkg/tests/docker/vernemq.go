@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 func VernemqttErlio(ctx context.Context, wg *sync.WaitGroup) (brokerUrl string, apiUrl string, err error) {
@@ -60,6 +61,8 @@ func VernemqttErlio(ctx context.Context, wg *sync.WaitGroup) (brokerUrl string, 
 		//log.Println("read logs form container mqtt:", Dockerlog(c, "MQTT"))
 		log.Println("DEBUG: remove container mqtt", c.Terminate(context.Background()))
 	}()
+
+	time.Sleep(2 * time.Second)
 
 	_, out, err := c.Exec(ctx, []string{"vmq-admin", "api-key", "add", "key=testkey"})
 	if err != nil {
