@@ -5,9 +5,9 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/SENERGY-Platform/device-repository v0.0.2
+	github.com/SENERGY-Platform/device-repository v0.0.3
 	github.com/SENERGY-Platform/models/go v0.0.0-20230824080159-16585960df38
-	github.com/SENERGY-Platform/mqtt-platform-connector v0.0.3
+	github.com/SENERGY-Platform/mqtt-platform-connector v0.0.5
 	github.com/SENERGY-Platform/permission-search v0.0.1
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/google/uuid v1.5.0
@@ -22,7 +22,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/Microsoft/hcsshim v0.11.4 // indirect
-	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240105124530-e51c7fbf01e8 // indirect
+	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240109133203-1b76d430cc65 // indirect
 	github.com/SENERGY-Platform/service-commons v0.0.0-20231115074650-7021aeae60e4 // indirect
 	github.com/acobaugh/osrelease v0.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
 	github.com/opencontainers/runc v1.1.11 // indirect
 	github.com/opensearch-project/opensearch-go v1.1.0 // indirect
-	github.com/pierrec/lz4/v4 v4.1.19 // indirect
+	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20221212215047-62379fc7944b // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
@@ -76,15 +76,15 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.mongodb.org/mongo-driver v1.13.1 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
 	golang.org/x/exp v0.0.0-20240103183307-be819d1f06fc // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240102182953-50ed04b92917 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240108191215-35c7eff3a6b1 // indirect
 	google.golang.org/grpc v1.60.1 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 )
