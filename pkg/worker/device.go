@@ -22,6 +22,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/models/go/models"
@@ -41,6 +42,7 @@ type Worker struct {
 	topic              common.TopicGenerator
 	hintstore          *cache.Cache
 	metrics            *prometheus.Metrics
+	minimalRecheckWait time.Duration
 }
 
 func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne, metrics *prometheus.Metrics) (*Worker, error) {
@@ -52,6 +54,11 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 	if err != nil {
 		return nil, err
 	}
+	minimalRecheckWait, err := time.ParseDuration(config.MinimalRecheckWaitDuration)
+	if err != nil {
+		log.Printf("WARNING %v -> set MinimalRecheckWaitDuration to 0\n", err)
+		minimalRecheckWait = time.Duration(0)
+	}
 	return &Worker{
 		config:             config,
 		logger:             logger,
@@ -62,6 +69,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		topic:              topic,
 		hintstore:          cache.New(deviceCheckTopicHintExpiration, time.Minute),
 		metrics:            metrics,
+		minimalRecheckWait: minimalRecheckWait,
 	}, nil
 }
 
@@ -95,6 +103,7 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 	if this.config.DeviceCheckInterval == "" || this.config.DeviceCheckInterval == "-" {
 		return nil
 	}
+
 	dur, err := time.ParseDuration(this.config.DeviceCheckInterval)
 	if err != nil {
 		return err
@@ -158,6 +167,10 @@ func (this *Worker) runDeviceCheck() error {
 	this.metrics.DevicesChecked.Inc()
 	start := time.Now()
 	device, err := this.deviceprovider.GetNextDevice()
+	if errors.Is(err, providers.ErrNoMatchingDevice) {
+		log.Println("no device to check found")
+		return nil
+	}
 	if err != nil {
 		return err
 	}

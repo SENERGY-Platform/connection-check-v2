@@ -45,6 +45,7 @@ type Config struct {
 	MaxHubAge                          string   `json:"max_hub_age"`
 	PermissionsRequestDeviceBatchSize  int      `json:"permissions_request_device_batch_size"`
 	PermissionsRequestHubBatchSize     int      `json:"permissions_request_hub_batch_size"`
+	MinimalRecheckWaitDuration         string   `json:"minimal_recheck_wait_duration"`
 	DeviceCheckInterval                string   `json:"device_check_interval"`
 	HubCheckInterval                   string   `json:"hub_check_interval"`
 	DeviceConnectionLogTopic           string   `json:"device_connection_log_topic"`

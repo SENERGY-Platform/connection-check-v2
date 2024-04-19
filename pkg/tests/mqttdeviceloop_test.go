@@ -192,6 +192,74 @@ func TestMqttDeviceLoop(t *testing.T) {
 	}
 }
 
+func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	config := configuration.Config{
+		Debug:                              true,
+		TopicGenerator:                     "mqtt",
+		HandledProtocols:                   []string{"urn:infai:ses:protocol:5"},
+		DeviceTypeCacheExpiration:          "30m",
+		MaxDeviceAge:                       "10s",
+		PermissionsRequestDeviceBatchSize:  50,
+		DeviceCheckInterval:                "100ms",
+		DeviceConnectionLogTopic:           "device_log",
+		HubConnectionLogTopic:              "gateway_log",
+		HubCheckInterval:                   "-",
+		MaxHubAge:                          "10s",
+		PermissionsRequestHubBatchSize:     11,
+		HubProtocolCheckCacheExpiration:    "1h",
+		DeviceCheckTopicHintExpiration:     "1h",
+		UseDeviceCheckTopicHintExclusively: true,
+	}
+
+	var err error
+
+	config.DeviceRepositoryUrl, config.PermissionSearchUrl, config.KafkaUrl, err = docker.DeviceRepoWithDependencies(ctx, wg)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = createDummySenergylikeDeviceTypes(config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = createDummyDevices(config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = createDummyHubs(config)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	time.Sleep(10 * time.Second)
+
+	mock := &Mock{}
+	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, mock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	deviceProvider, err := providers.NewDeviceProvider(config, mock, deviceTypeProvider)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	t.Log(deviceProvider.GetNextDevice())
+
+}
+
 func createDummyMqttDevices(config configuration.Config) error {
 	writer := kafka.Writer{
 		Addr:        kafka.TCP(config.KafkaUrl),

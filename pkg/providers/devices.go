@@ -59,6 +59,7 @@ type DeviceProvider struct {
 	maxAge           time.Duration
 	mux              sync.Mutex
 	handledProtocols map[string]bool
+	foundDevices     int64 //needed to exit loop if no matching device is found
 }
 
 type TokenGenerator interface {
@@ -83,7 +84,9 @@ func (this *DeviceProvider) GetNextDevice() (device model.PermDevice, err error)
 		device, err = this.getNextDeviceFromBatch()
 		if err == nil {
 			this.lastDevice = device
-			if !this.deviceMatchesProtocol(device) {
+			if this.deviceMatchesProtocol(device) {
+				this.foundDevices = this.foundDevices + 1
+			} else {
 				device = model.PermDevice{}
 			}
 		}
@@ -98,6 +101,7 @@ func (this *DeviceProvider) GetNextDevice() (device model.PermDevice, err error)
 }
 
 var EmptyBatch = errors.New("empty batch")
+var ErrNoMatchingDevice = errors.New("no matching device")
 
 func (this *DeviceProvider) getNextDeviceFromBatch() (device model.PermDevice, err error) {
 	if this.nextBatchIndex >= len(this.batch) {
@@ -172,9 +176,16 @@ func (this *DeviceProvider) loadBatch() error {
 		return err
 	}
 	if len(list) == 0 {
+		this.lastDevice = model.PermDevice{}
+		if this.foundDevices == 0 {
+			this.batch = nil
+			this.nextBatchIndex = 0
+			return ErrNoMatchingDevice
+		}
 		if this.config.Debug {
 			log.Println("load batch from beginning")
 		}
+		this.foundDevices = 0
 		this.lastRequest = time.Now()
 		list, err = client.List[[]model.PermDevice](this.permissions, token, "devices", permmodel.ListOptions{
 			QueryListCommons: permmodel.QueryListCommons{
