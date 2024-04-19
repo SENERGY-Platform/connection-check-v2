@@ -59,7 +59,6 @@ type DeviceProvider struct {
 	maxAge           time.Duration
 	mux              sync.Mutex
 	handledProtocols map[string]bool
-	foundDevices     int64 //needed to exit loop if no matching device is found
 }
 
 type TokenGenerator interface {
@@ -70,7 +69,7 @@ type DeviceTypeProviderInterface interface {
 	GetDeviceType(deviceTypeId string) (dt models.DeviceType, err error)
 }
 
-func (this *DeviceProvider) GetNextDevice() (device model.PermDevice, err error) {
+func (this *DeviceProvider) GetNextDevice() (device model.PermDevice, isFirstDeviceOfBatchLoopRepeat bool, err error) {
 	this.mux.Lock()
 	defer this.mux.Unlock()
 	if time.Since(this.lastRequest) > this.maxAge {
@@ -80,24 +79,33 @@ func (this *DeviceProvider) GetNextDevice() (device model.PermDevice, err error)
 		this.batch = []model.PermDevice{}
 		this.nextBatchIndex = 0
 	}
+	backToBeginningCount := 0
 	for device.Id == "" && err == nil {
 		device, err = this.getNextDeviceFromBatch()
 		if err == nil {
 			this.lastDevice = device
-			if this.deviceMatchesProtocol(device) {
-				this.foundDevices = this.foundDevices + 1
-			} else {
+			if !this.deviceMatchesProtocol(device) {
 				device = model.PermDevice{}
 			}
 		}
 		if err == EmptyBatch {
-			err = this.loadBatch()
+			backToBeginning := false
+			this.nextBatchIndex = 0
+			this.batch, backToBeginning, err = this.getBatch(this.lastDevice)
 			if err != nil {
-				return device, err
+				return device, isFirstDeviceOfBatchLoopRepeat, err
+			}
+			if backToBeginning {
+				isFirstDeviceOfBatchLoopRepeat = true
+				this.lastDevice = model.PermDevice{}
+				backToBeginningCount++
+				if backToBeginningCount >= 2 {
+					return device, isFirstDeviceOfBatchLoopRepeat, ErrNoMatchingDevice
+				}
 			}
 		}
 	}
-	return device, err
+	return device, isFirstDeviceOfBatchLoopRepeat, err
 }
 
 var EmptyBatch = errors.New("empty batch")
@@ -145,19 +153,19 @@ func (this *DeviceProvider) GetDevice(id string) (result model.PermDevice, err e
 	return result, errors.New("device not found")
 }
 
-func (this *DeviceProvider) loadBatch() error {
+func (this *DeviceProvider) getBatch(from model.PermDevice) (batch []model.PermDevice, backToTheBeginning bool, err error) {
 	if this.config.Debug {
 		log.Println("load batch")
 	}
 	token, err := this.tokengen.Access()
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	var after *permmodel.ListAfter
 	if this.lastDevice.Id != "" {
 		after = &permmodel.ListAfter{
-			SortFieldValue: this.lastDevice.LocalId,
-			Id:             this.lastDevice.Id,
+			SortFieldValue: from.LocalId,
+			Id:             from.Id,
 		}
 		if this.config.Debug {
 			log.Printf("use after %#v", *after)
@@ -173,20 +181,13 @@ func (this *DeviceProvider) loadBatch() error {
 		},
 	})
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 	if len(list) == 0 {
-		this.lastDevice = model.PermDevice{}
-		if this.foundDevices == 0 {
-			this.batch = nil
-			this.nextBatchIndex = 0
-			return ErrNoMatchingDevice
-		}
+		backToTheBeginning = true
 		if this.config.Debug {
 			log.Println("load batch from beginning")
 		}
-		this.foundDevices = 0
-		this.lastRequest = time.Now()
 		list, err = client.List[[]model.PermDevice](this.permissions, token, "devices", permmodel.ListOptions{
 			QueryListCommons: permmodel.QueryListCommons{
 				Limit:  this.config.PermissionsRequestDeviceBatchSize,
@@ -195,12 +196,10 @@ func (this *DeviceProvider) loadBatch() error {
 			},
 		})
 		if err != nil {
-			return err
+			return list, backToTheBeginning, nil
 		}
 	}
-	this.batch = list
-	this.nextBatchIndex = 0
-	return nil
+	return list, backToTheBeginning, nil
 }
 
 func DeviceTypeUsesHandledProtocol(dt models.DeviceType, handledProtocols map[string]bool) (result bool) {

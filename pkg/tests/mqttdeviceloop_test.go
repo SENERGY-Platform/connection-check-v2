@@ -19,6 +19,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
@@ -256,8 +257,10 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 		return
 	}
 
-	t.Log(deviceProvider.GetNextDevice())
-
+	_, _, err = deviceProvider.GetNextDevice()
+	if !errors.Is(err, providers.ErrNoMatchingDevice) {
+		t.Error(err)
+	}
 }
 
 func createDummyMqttDevices(config configuration.Config) error {

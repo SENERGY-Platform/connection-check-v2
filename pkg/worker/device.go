@@ -81,7 +81,7 @@ type ConnectionLogger interface {
 }
 
 type DeviceProvider interface {
-	GetNextDevice() (device model.PermDevice, err error)
+	GetNextDevice() (device model.PermDevice, isFirstDeviceOfBatchLoopRepeat bool, err error)
 	GetDevice(id string) (result model.PermDevice, err error)
 }
 
@@ -103,6 +103,7 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 	if this.config.DeviceCheckInterval == "" || this.config.DeviceCheckInterval == "-" {
 		return nil
 	}
+	batchLoopStartTime := time.Now()
 
 	dur, err := time.ParseDuration(this.config.DeviceCheckInterval)
 	if err != nil {
@@ -116,7 +117,16 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 		for {
 			select {
 			case <-t.C:
-				errHandler(this.runDeviceCheck())
+				var isFirstDeviceOfBatchLoopRepeat bool
+				isFirstDeviceOfBatchLoopRepeat, err = this.runDeviceCheck()
+				errHandler(err)
+				if isFirstDeviceOfBatchLoopRepeat {
+					since := time.Since(batchLoopStartTime)
+					if since < this.minimalRecheckWait {
+						time.Sleep(this.minimalRecheckWait - since)
+					}
+					batchLoopStartTime = time.Now()
+				}
 			case <-ctx.Done():
 				t.Stop()
 				return
@@ -163,42 +173,43 @@ func getFatalErrOnRepeatHandler(maxCount int64) func(error) {
 
 const ConnectionStateAnnotation = "connected"
 
-func (this *Worker) runDeviceCheck() error {
+func (this *Worker) runDeviceCheck() (isFirstDeviceOfBatchLoopRepeat bool, err error) {
 	this.metrics.DevicesChecked.Inc()
 	start := time.Now()
-	device, err := this.deviceprovider.GetNextDevice()
+	var device model.PermDevice
+	device, isFirstDeviceOfBatchLoopRepeat, err = this.deviceprovider.GetNextDevice()
 	if errors.Is(err, providers.ErrNoMatchingDevice) {
 		log.Println("no device to check found")
-		return nil
+		return isFirstDeviceOfBatchLoopRepeat, nil
 	}
 	if err != nil {
-		return err
+		return isFirstDeviceOfBatchLoopRepeat, err
 	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
 	if err == common.NoSubscriptionExpected {
-		return nil
+		return isFirstDeviceOfBatchLoopRepeat, nil
 	}
 	if err != nil {
-		return err
+		return isFirstDeviceOfBatchLoopRepeat, err
 	}
 	isOnline, err := this.checkTopics(device, topics)
 	if err != nil {
-		return err
+		return isFirstDeviceOfBatchLoopRepeat, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	annotation, ok := device.Annotations[ConnectionStateAnnotation]
 	if !ok {
-		return this.updateDeviceState(device, isOnline)
+		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
 	}
 	expected, ok := annotation.(bool)
 	if !ok {
 		log.Printf("WARNING: unexpected device state anotation in %#v", device)
-		return this.updateDeviceState(device, isOnline)
+		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
 	}
 	if expected != isOnline {
-		return this.updateDeviceState(device, isOnline)
+		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
 	}
-	return nil
+	return isFirstDeviceOfBatchLoopRepeat, nil
 }
 
 func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlineSubscriptionExists bool, err error) {
