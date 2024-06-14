@@ -78,6 +78,7 @@ func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoU
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image: "ghcr.io/senergy-platform/device-repository:dev",
 			Env: map[string]string{
+				"DEBUG":           "true",
 				"KAFKA_URL":       kafkaUrl,
 				"PERMISSIONS_URL": permsearch,
 				"MONGO_URL":       mongoUrl,

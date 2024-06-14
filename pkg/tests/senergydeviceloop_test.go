@@ -87,6 +87,8 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
+	time.Sleep(10 * time.Second)
+
 	err = createDummyHubs(config)
 	if err != nil {
 		t.Error(err)
@@ -122,11 +124,15 @@ func TestSenergyDeviceLoop(t *testing.T) {
 
 	mock := &Mock{
 		CheckTopicF: func(topic string) bool {
-			parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(topic, "command/lid-"), "/+"), "-")
-			if len(parts) != 2 {
+			topicParts := strings.Split(topic, "/")
+			if len(topicParts) < 3 {
 				return false
 			}
-			num, err := strconv.Atoi(parts[1])
+			lidParts := strings.Split(topicParts[2], "-")
+			if len(lidParts) < 3 {
+				return false
+			}
+			num, err := strconv.Atoi(lidParts[2])
 			if err != nil {
 				log.Println("ERROR:", err)
 				return false
@@ -177,15 +183,15 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	mock.Mutex.Lock()
 	defer mock.Mutex.Unlock()
 
-	if slices.Contains(mock.CheckTopicCalls, "command/lid-1-0/+") {
+	if slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-1-0/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/lid-0-98/+") {
+	if !slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-0-98/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/lid-0-99/+") {
+	if !slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-0-99/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
@@ -430,6 +436,7 @@ func createDummyDevices(config configuration.Config) error {
 					LocalId:      "lid-" + deviceindex,
 					Name:         deviceindex,
 					DeviceTypeId: "urn:infai:ses:device-type:" + devicetypeindex,
+					OwnerId:      "testowner",
 				},
 			})
 			if err != nil {
@@ -497,11 +504,15 @@ func getDummyHubs() (result []models.Hub) {
 	offlineDevices := [][]string{}
 	unhandledDevices := [][]string{}
 
+	idToLocalId := map[string]string{}
+
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 200; j++ {
 			devicetypeindex := strconv.Itoa(i)
 			deviceindex := devicetypeindex + "-" + strconv.Itoa(j)
 			id := "urn:infai:ses:device:" + deviceindex
+			localId := "lid-" + deviceindex
+			idToLocalId[id] = localId
 
 			if i == 0 {
 				if j < 100 {
@@ -528,30 +539,44 @@ func getDummyHubs() (result []models.Hub) {
 	}
 
 	for i, devices := range onlineDevices {
+		localDeviceIds := []string{}
+		for _, device := range devices {
+			localDeviceIds = append(localDeviceIds, idToLocalId[device])
+		}
 		result = append(result, models.Hub{
-			Id:        "online-" + strconv.Itoa(i),
-			Name:      "online-" + strconv.Itoa(i),
-			Hash:      "",
-			DeviceIds: devices,
+			Id:             "online-" + strconv.Itoa(i),
+			Name:           "online-" + strconv.Itoa(i),
+			Hash:           "",
+			DeviceIds:      devices,
+			DeviceLocalIds: localDeviceIds,
 		})
 	}
 	for i, devices := range offlineDevices {
+		localDeviceIds := []string{}
+		for _, device := range devices {
+			localDeviceIds = append(localDeviceIds, idToLocalId[device])
+		}
 		result = append(result, models.Hub{
-			Id:        "offline-" + strconv.Itoa(i),
-			Name:      "offline-" + strconv.Itoa(i),
-			Hash:      "",
-			DeviceIds: devices,
+			Id:             "offline-" + strconv.Itoa(i),
+			Name:           "offline-" + strconv.Itoa(i),
+			Hash:           "",
+			DeviceIds:      devices,
+			DeviceLocalIds: localDeviceIds,
 		})
 	}
 	for i, devices := range unhandledDevices {
+		localDeviceIds := []string{}
+		for _, device := range devices {
+			localDeviceIds = append(localDeviceIds, idToLocalId[device])
+		}
 		result = append(result, models.Hub{
-			Id:        "unhandled-" + strconv.Itoa(i),
-			Name:      "unhandled-" + strconv.Itoa(i),
-			Hash:      "",
-			DeviceIds: devices,
+			Id:             "unhandled-" + strconv.Itoa(i),
+			Name:           "unhandled-" + strconv.Itoa(i),
+			Hash:           "",
+			DeviceIds:      devices,
+			DeviceLocalIds: localDeviceIds,
 		})
 	}
-
 	return result
 }
 

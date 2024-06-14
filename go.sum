@@ -12,12 +12,12 @@ github.com/Microsoft/hcsshim v0.12.0 h1:rbICA+XZFwrBef2Odk++0LjFvClNCJGRK+fsrP25
 github.com/Microsoft/hcsshim v0.12.0/go.mod h1:RZV12pcHCXQ42XnlQ3pz6FZfmrC1C+R4gaOHhRNML1g=
 github.com/SENERGY-Platform/device-repository v0.0.9 h1:1gcLFotMyVfjJL8mUYAtmNXSJ4dwTXN0m+RdaqfqQuY=
 github.com/SENERGY-Platform/device-repository v0.0.9/go.mod h1:5X3iNy7J/E6UxFNRE3mbSEcD8jEZEP1+FM6W3N1yI58=
-github.com/SENERGY-Platform/models/go v0.0.0-20230824080159-16585960df38 h1:PDvFwIJBnFyKt1KeepkABNIS57+WhVj4vBw7X5JGZJw=
-github.com/SENERGY-Platform/models/go v0.0.0-20230824080159-16585960df38/go.mod h1:bCREPNRN4P8oxLgpC3/ZKK4jXSy4MSPXoiomhohE+aw=
+github.com/SENERGY-Platform/models/go v0.0.0-20240527081255-52b6a0f84955 h1:F2/npODU4ODkrkZ7mVmRKjHW1KJFgtaFOKq+rI1XwDM=
+github.com/SENERGY-Platform/models/go v0.0.0-20240527081255-52b6a0f84955/go.mod h1:bCREPNRN4P8oxLgpC3/ZKK4jXSy4MSPXoiomhohE+aw=
 github.com/SENERGY-Platform/mqtt-platform-connector v0.0.14 h1:jVNtm2poUqgzrGhzDlltYHRq+7hl+P6RpJhTHz9jDGQ=
 github.com/SENERGY-Platform/mqtt-platform-connector v0.0.14/go.mod h1:yqC49bg7hoo+iEMU+3DKhK5ikSUJtSRgmdiCeTFPlWk=
-github.com/SENERGY-Platform/permission-search v0.0.7 h1:7W+2uYK7REbzCEmLrVOP4Q84hKP2ID4Y4RdJ5wQZBdA=
-github.com/SENERGY-Platform/permission-search v0.0.7/go.mod h1:P5tkakrFWMMbNVeDsW0RBd7tYOgC82cr7+dqNI8EcFc=
+github.com/SENERGY-Platform/permission-search v0.0.14-0.20240614083955-352f8ba580f5 h1:AYASyCqAZTcwq0W1lSgpO/1VIiSGopUzOuGG5SqXoeI=
+github.com/SENERGY-Platform/permission-search v0.0.14-0.20240614083955-352f8ba580f5/go.mod h1:TL+tg9zvYGjBWmdjOhfT10oRBnbdDvHSml1p1U/eeNI=
 github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240315071852-b1e66486739a h1:hoiNBkguJa3SWOGJ42yGISLtGwnBGj0rk/rt6szD+yk=
 github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240315071852-b1e66486739a/go.mod h1:QVXK1Yj4qPaFuejQh7oSjTLFZFbsUsUhtE2UzOFoDbg=
 github.com/SENERGY-Platform/service-commons v0.0.0-20240314112519-5bde66831b0d h1:nyiUEVqQc4njAz98rdRFOBivN7Ar9tiI7A/ej0POEx0=

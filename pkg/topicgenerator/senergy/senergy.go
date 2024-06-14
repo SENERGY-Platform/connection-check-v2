@@ -17,6 +17,7 @@
 package senergy
 
 import (
+	"fmt"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
@@ -25,7 +26,10 @@ import (
 
 func init() {
 	known.Generators["senergy"] = func(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.PermDevice) (topicCandidates []string, err error) {
-		topicCandidates = append(topicCandidates, "command/"+device.LocalId+"/+")
+		topicCandidates = append(topicCandidates,
+			fmt.Sprintf("command/%v/%v/+", device.OwnerId, device.LocalId),
+			fmt.Sprintf("command/%v/+", device.LocalId), //fallback to old topic structure
+		)
 		return topicCandidates, nil
 	}
 }
