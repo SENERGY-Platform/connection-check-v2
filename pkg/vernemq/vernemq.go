@@ -30,15 +30,21 @@ import (
 )
 
 func New(config configuration.Config, metrics *prometheus.Metrics) *Vernemq {
-	return &Vernemq{apiUrl: config.VerneManagementUrl, metrics: metrics}
+	return &Vernemq{apiUrl: config.VerneManagementUrl, metrics: metrics, config: config}
 }
 
 type Vernemq struct {
 	apiUrl  string
 	metrics *prometheus.Metrics
+	config  configuration.Config
 }
 
 func (this *Vernemq) CheckTopic(topic string) (result bool, err error) {
+	if this.config.Debug {
+		defer func() {
+			log.Println("DEBUG: check topic", topic, result, err)
+		}()
+	}
 	this.metrics.TopicsChecked.Inc()
 	path := "/api/v1/session/show?--is_online=true&--topic=" + url.QueryEscape(topic) + "&--limit=1"
 	req, err := http.NewRequest("GET", this.apiUrl+path, nil)

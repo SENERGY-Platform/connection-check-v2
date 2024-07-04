@@ -213,6 +213,11 @@ func (this *Worker) runDeviceCheck() (isFirstDeviceOfBatchLoopRepeat bool, err e
 }
 
 func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlineSubscriptionExists bool, err error) {
+	if this.config.Debug {
+		defer func() {
+			log.Printf("DEBUG: check device id=%v owner=%v local-id=%v result=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, onlineSubscriptionExists, err)
+		}()
+	}
 	hintTopic, useHint := this.getHint(device)
 	if useHint {
 		onlineSubscriptionExists, err = this.verne.CheckTopic(hintTopic)
