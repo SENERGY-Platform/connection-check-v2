@@ -164,8 +164,7 @@ func (this *DeviceProvider) getBatch(from model.PermDevice) (batch []model.PermD
 	var after *permmodel.ListAfter
 	if this.lastDevice.Id != "" {
 		after = &permmodel.ListAfter{
-			SortFieldValue: from.LocalId,
-			Id:             from.Id,
+			Id: from.Id,
 		}
 		if this.config.Debug {
 			log.Printf("use after %#v", *after)
@@ -177,7 +176,7 @@ func (this *DeviceProvider) getBatch(from model.PermDevice) (batch []model.PermD
 			Limit:  this.config.PermissionsRequestDeviceBatchSize,
 			After:  after,
 			Rights: "r",
-			SortBy: "local_id",
+			SortBy: "id",
 		},
 	})
 	if err != nil {
@@ -192,7 +191,7 @@ func (this *DeviceProvider) getBatch(from model.PermDevice) (batch []model.PermD
 			QueryListCommons: permmodel.QueryListCommons{
 				Limit:  this.config.PermissionsRequestDeviceBatchSize,
 				Rights: "r",
-				SortBy: "local_id",
+				SortBy: "id",
 			},
 		})
 		if err != nil {

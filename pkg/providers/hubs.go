@@ -146,8 +146,7 @@ func (this *HubProvider) loadBatch() error {
 	var after *permmodel.ListAfter
 	if this.lastHub.Id != "" {
 		after = &permmodel.ListAfter{
-			SortFieldValue: this.lastHub.Name,
-			Id:             this.lastHub.Id,
+			Id: this.lastHub.Id,
 		}
 		if this.config.Debug {
 			log.Printf("use after %#v", *after)
@@ -159,7 +158,7 @@ func (this *HubProvider) loadBatch() error {
 			Limit:  this.config.PermissionsRequestHubBatchSize,
 			After:  after,
 			Rights: "r",
-			SortBy: "name",
+			SortBy: "id",
 		},
 	})
 	if err != nil {
@@ -174,7 +173,7 @@ func (this *HubProvider) loadBatch() error {
 			QueryListCommons: permmodel.QueryListCommons{
 				Limit:  this.config.PermissionsRequestHubBatchSize,
 				Rights: "r",
-				SortBy: "name",
+				SortBy: "id",
 			},
 		})
 		if err != nil {
