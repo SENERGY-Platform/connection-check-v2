@@ -3,10 +3,10 @@ module github.com/SENERGY-Platform/connection-check-v2
 go 1.22
 
 require (
-	github.com/SENERGY-Platform/device-repository v0.0.29
+	github.com/SENERGY-Platform/device-repository v0.0.30
 	github.com/SENERGY-Platform/models/go v0.0.0-20240627082833-157bd627a94f
 	github.com/SENERGY-Platform/mqtt-platform-connector v0.0.19
-	github.com/SENERGY-Platform/permission-search v0.0.15
+	github.com/SENERGY-Platform/permission-search v0.0.16
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/google/uuid v1.6.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -21,7 +21,7 @@ require (
 	github.com/IBM/sarama v1.43.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.12.4 // indirect
-	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240628090712-5125e12a31c4 // indirect
+	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240709092939-b6153d631069 // indirect
 	github.com/SENERGY-Platform/service-commons v0.0.0-20240708085423-94423a495d7f // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
