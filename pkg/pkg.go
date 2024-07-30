@@ -29,6 +29,7 @@ import (
 	"log"
 	"runtime/debug"
 	"sync"
+	"time"
 )
 
 func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) error {
@@ -94,30 +95,75 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client
 			debug.PrintStack()
 			return
 		}
-		connected, err := perm.Total(token, "devices", client.ListOptions{
-			Selection: &client.FeatureSelection{
-				Feature: "annotations.connected",
-				Value:   "true",
-			},
-		})
-		if err != nil {
-			log.Println("ERROR:", err)
-			debug.PrintStack()
-			return
-		}
-		metrics.TotalConnected.Set(float64(connected))
+		wg := sync.WaitGroup{}
 
-		disconnected, err := perm.Total(token, "devices", client.ListOptions{
-			Selection: &client.FeatureSelection{
-				Feature: "annotations.connected",
-				Value:   "false",
-			},
-		})
-		if err != nil {
-			log.Println("ERROR:", err)
-			debug.PrintStack()
-			return
-		}
-		metrics.TotalDisconnected.Set(float64(disconnected))
+		start := time.Now()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			connected, err := perm.Total(token, "devices", client.ListOptions{
+				Selection: &client.FeatureSelection{
+					Feature: "annotations.connected",
+					Value:   "true",
+				},
+			})
+			if err != nil {
+				log.Println("ERROR: unable to load total connected device count from permission-search;", err)
+				return
+			}
+			metrics.TotalConnected.Set(float64(connected))
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			disconnected, err := perm.Total(token, "devices", client.ListOptions{
+				Selection: &client.FeatureSelection{
+					Feature: "annotations.connected",
+					Value:   "false",
+				},
+			})
+			if err != nil {
+				log.Println("ERROR: unable to load total disconnected device count from permission-search;", err)
+				return
+			}
+			metrics.TotalDisconnected.Set(float64(disconnected))
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			connected, err := perm.Total(token, "hubs", client.ListOptions{
+				Selection: &client.FeatureSelection{
+					Feature: "annotations.connected",
+					Value:   "true",
+				},
+			})
+			if err != nil {
+				log.Println("ERROR: unable to load total connected hub count from permission-search;", err)
+				return
+			}
+			metrics.TotalHubsConnected.Set(float64(connected))
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			disconnected, err := perm.Total(token, "hubs", client.ListOptions{
+				Selection: &client.FeatureSelection{
+					Feature: "annotations.connected",
+					Value:   "false",
+				},
+			})
+			if err != nil {
+				log.Println("ERROR: unable to load total disconnected hub count from permission-search;", err)
+				return
+			}
+			metrics.TotalHubsDisconnected.Set(float64(disconnected))
+		}()
+
+		wg.Wait()
+		metrics.PermissionsRequestDurationForConnectionMetrics.Set(float64(time.Since(start).Milliseconds()))
 	}
 }

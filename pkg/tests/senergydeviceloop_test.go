@@ -467,7 +467,8 @@ func createDummyHubs(config configuration.Config) error {
 		Balancer:    &kafka.Hash{},
 	}
 	defer writer.Close()
-	for _, hub := range getDummyHubs() {
+	hubs := getDummyHubs()
+	for _, hub := range hubs {
 		b, err := json.Marshal(map[string]interface{}{
 			"command": "PUT",
 			"id":      hub.Id,
@@ -546,6 +547,7 @@ func getDummyHubs() (result []models.Hub) {
 		result = append(result, models.Hub{
 			Id:             "online-" + strconv.Itoa(i),
 			Name:           "online-" + strconv.Itoa(i),
+			OwnerId:        "testowner",
 			Hash:           "",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,
@@ -560,6 +562,7 @@ func getDummyHubs() (result []models.Hub) {
 			Id:             "offline-" + strconv.Itoa(i),
 			Name:           "offline-" + strconv.Itoa(i),
 			Hash:           "",
+			OwnerId:        "testowner",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,
 		})
@@ -572,6 +575,7 @@ func getDummyHubs() (result []models.Hub) {
 		result = append(result, models.Hub{
 			Id:             "unhandled-" + strconv.Itoa(i),
 			Name:           "unhandled-" + strconv.Itoa(i),
+			OwnerId:        "testowner",
 			Hash:           "",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,

@@ -44,6 +44,11 @@ type Metrics struct {
 	TotalConnected    prometheus.Gauge
 	TotalDisconnected prometheus.Gauge
 
+	TotalHubsConnected    prometheus.Gauge
+	TotalHubsDisconnected prometheus.Gauge
+
+	PermissionsRequestDurationForConnectionMetrics prometheus.Gauge
+
 	httphandler http.Handler
 
 	onMetricsServeRequest func()
@@ -114,6 +119,18 @@ func NewMetrics(prefix string) *Metrics {
 			Name: prefix + "_total_disconnected",
 			Help: "total count of all disconnected devices",
 		}),
+		TotalHubsConnected: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: prefix + "_hubs_total_connected",
+			Help: "total count of all connected hubs",
+		}),
+		TotalHubsDisconnected: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: prefix + "_hubs_total_disconnected",
+			Help: "total count of all disconnected hubs",
+		}),
+		PermissionsRequestDurationForConnectionMetrics: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: prefix + "_permissions_request_duration_for_connection_metrics_ms",
+			Help: "time needed for permissions-search requests that count (dis)connected hubs and devices for metrics",
+		}),
 	}
 
 	reg.MustRegister(m.TopicsChecked)
@@ -130,6 +147,9 @@ func NewMetrics(prefix string) *Metrics {
 	reg.MustRegister(m.SendHubDisconnected)
 	reg.MustRegister(m.TotalConnected)
 	reg.MustRegister(m.TotalDisconnected)
+	reg.MustRegister(m.TotalHubsConnected)
+	reg.MustRegister(m.TotalHubsDisconnected)
+	reg.MustRegister(m.PermissionsRequestDurationForConnectionMetrics)
 
 	return m
 }
