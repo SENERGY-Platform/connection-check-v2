@@ -34,11 +34,3 @@ jobs:
           tags: |
             smartenergyplatform/connection-check-v2:dev
             ghcr.io/senergy-platform/connection-check-v2:dev
-      - name: Deploy
-        uses: wei/curl@v1
-        with:
-          args: -X POST -u ${{ secrets.RANCHER_TOKEN }} ${{ secrets.RANCHER_URL }}${{ secrets.RANCHER_SERVICE }}?action=redeploy
-      - name: Deploy-Edit
-        uses: wei/curl@v1
-        with:
-          args: -X POST -u ${{ secrets.RANCHER_TOKEN }} ${{ secrets.RANCHER_URL }}${{ secrets.RANCHER_SERVICE_EDIT }}?action=redeploy
