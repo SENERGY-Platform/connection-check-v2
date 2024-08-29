@@ -48,10 +48,10 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 		for {
 			select {
 			case <-t.C:
-				var isFirstDeviceOfBatchLoopRepeat bool
-				isFirstDeviceOfBatchLoopRepeat, err = this.runHubCheck()
+				var resets int
+				resets, err = this.runHubCheck()
 				errHandler(err)
-				if isFirstDeviceOfBatchLoopRepeat {
+				if resets > 0 {
 					since := time.Since(batchLoopStartTime)
 					if since < this.minimalRecheckWait {
 						time.Sleep(this.minimalRecheckWait - since)
@@ -67,31 +67,31 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (this *Worker) runHubCheck() (isFirstDeviceOfBatchLoopRepeat bool, err error) {
+func (this *Worker) runHubCheck() (resets int, err error) {
 	this.metrics.HubsChecked.Inc()
 	start := time.Now()
 	hub := models.ExtendedHub{}
-	hub, isFirstDeviceOfBatchLoopRepeat, err = this.hubprovider.GetNextHub()
-	if errors.Is(err, providers.ErrNoMatchingDevice) {
+	hub, resets, err = this.hubprovider.GetNextHub()
+	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
 		log.Println("no hub to check found")
-		return isFirstDeviceOfBatchLoopRepeat, nil
+		return resets, nil
 	}
 	if err != nil {
-		return isFirstDeviceOfBatchLoopRepeat, err
+		return resets, err
 	}
 	isOnline, err := this.verne.CheckClient(hub.Id)
 	if err != nil {
-		return isFirstDeviceOfBatchLoopRepeat, err
+		return resets, err
 	}
 	this.metrics.HubCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	if hub.ConnectionState == models.ConnectionStateUnknown {
-		return isFirstDeviceOfBatchLoopRepeat, this.updateHubState(hub, isOnline)
+		return resets, this.updateHubState(hub, isOnline)
 	}
 	expected := hub.ConnectionState == models.ConnectionStateOnline
 	if expected != isOnline {
-		return isFirstDeviceOfBatchLoopRepeat, this.updateHubState(hub, isOnline)
+		return resets, this.updateHubState(hub, isOnline)
 	}
-	return isFirstDeviceOfBatchLoopRepeat, nil
+	return resets, nil
 }
 
 func (this *Worker) updateHubState(hub model.ExtendedHub, online bool) error {

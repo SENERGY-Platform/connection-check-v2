@@ -40,8 +40,6 @@ type Config struct {
 	AuthExpirationTimeBuffer           float64  `json:"auth_expiration_time_buffer"`
 	DeviceTypeCacheExpiration          string   `json:"device_type_cache_expiration"`
 	HubProtocolCheckCacheExpiration    string   `json:"hub_protocol_check_cache_expiration"`
-	MaxDeviceAge                       string   `json:"max_device_age"`
-	MaxHubAge                          string   `json:"max_hub_age"`
 	PermissionsRequestDeviceBatchSize  int      `json:"permissions_request_device_batch_size"`
 	PermissionsRequestHubBatchSize     int      `json:"permissions_request_hub_batch_size"`
 	MinimalRecheckWaitDuration         string   `json:"minimal_recheck_wait_duration"`

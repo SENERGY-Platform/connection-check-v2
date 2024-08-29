@@ -49,13 +49,11 @@ func TestMqttDeviceLoop(t *testing.T) {
 		TopicGenerator:                     "mqtt",
 		HandledProtocols:                   []string{"urn:infai:ses:protocol:0"},
 		DeviceTypeCacheExpiration:          "30m",
-		MaxDeviceAge:                       "10s",
 		PermissionsRequestDeviceBatchSize:  50,
 		DeviceCheckInterval:                "100ms",
 		DeviceConnectionLogTopic:           "device_log",
 		HubConnectionLogTopic:              "gateway_log",
 		HubCheckInterval:                   "-",
-		MaxHubAge:                          "10s",
 		PermissionsRequestHubBatchSize:     11,
 		HubProtocolCheckCacheExpiration:    "1h",
 		DeviceCheckTopicHintExpiration:     "1h",
@@ -188,13 +186,11 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 		TopicGenerator:                     "mqtt",
 		HandledProtocols:                   []string{"urn:infai:ses:protocol:5"},
 		DeviceTypeCacheExpiration:          "30m",
-		MaxDeviceAge:                       "10s",
 		PermissionsRequestDeviceBatchSize:  50,
 		DeviceCheckInterval:                "100ms",
 		DeviceConnectionLogTopic:           "device_log",
 		HubConnectionLogTopic:              "gateway_log",
 		HubCheckInterval:                   "-",
-		MaxHubAge:                          "10s",
 		PermissionsRequestHubBatchSize:     11,
 		HubProtocolCheckCacheExpiration:    "1h",
 		DeviceCheckTopicHintExpiration:     "1h",
@@ -242,7 +238,7 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 	}
 
 	_, _, err = deviceProvider.GetNextDevice()
-	if !errors.Is(err, providers.ErrNoMatchingDevice) {
+	if !errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
 		t.Error(err)
 	}
 }

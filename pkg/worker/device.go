@@ -81,12 +81,12 @@ type ConnectionLogger interface {
 }
 
 type DeviceProvider interface {
-	GetNextDevice() (device model.ExtendedDevice, isFirstDeviceOfBatchLoopRepeat bool, err error)
+	GetNextDevice() (device model.ExtendedDevice, resets int, err error)
 	GetDevice(id string) (result model.ExtendedDevice, err error)
 }
 
 type HubProvider interface {
-	GetNextHub() (hub model.ExtendedHub, isFirstHubOfBatchLoopRepeat bool, err error)
+	GetNextHub() (hub model.ExtendedHub, resets int, err error)
 	GetHub(id string) (result model.ExtendedHub, err error)
 }
 
@@ -117,10 +117,10 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 		for {
 			select {
 			case <-t.C:
-				var isFirstDeviceOfBatchLoopRepeat bool
-				isFirstDeviceOfBatchLoopRepeat, err = this.runDeviceCheck()
+				var resets int
+				resets, err = this.runDeviceCheck()
 				errHandler(err)
-				if isFirstDeviceOfBatchLoopRepeat {
+				if resets > 0 {
 					since := time.Since(batchLoopStartTime)
 					if since < this.minimalRecheckWait {
 						time.Sleep(this.minimalRecheckWait - since)
@@ -171,35 +171,35 @@ func getFatalErrOnRepeatHandler(maxCount int64) func(error) {
 	}
 }
 
-func (this *Worker) runDeviceCheck() (isFirstDeviceOfBatchLoopRepeat bool, err error) {
+func (this *Worker) runDeviceCheck() (resets int, err error) {
 	this.metrics.DevicesChecked.Inc()
 	start := time.Now()
 	var device model.ExtendedDevice
-	device, isFirstDeviceOfBatchLoopRepeat, err = this.deviceprovider.GetNextDevice()
-	if errors.Is(err, providers.ErrNoMatchingDevice) {
+	device, resets, err = this.deviceprovider.GetNextDevice()
+	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
 		log.Println("no device to check found")
-		return isFirstDeviceOfBatchLoopRepeat, nil
+		return resets, nil
 	}
 	if err != nil {
-		return isFirstDeviceOfBatchLoopRepeat, err
+		return resets, err
 	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
 	if err == common.NoSubscriptionExpected {
-		return isFirstDeviceOfBatchLoopRepeat, nil
+		return resets, nil
 	}
 	if err != nil {
-		return isFirstDeviceOfBatchLoopRepeat, err
+		return resets, err
 	}
 	isOnline, err := this.checkTopics(device, topics)
 	if err != nil {
-		return isFirstDeviceOfBatchLoopRepeat, err
+		return resets, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	expected := device.ConnectionState == models.ConnectionStateOnline
 	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown {
-		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
+		return resets, this.updateDeviceState(device, isOnline)
 	}
-	return isFirstDeviceOfBatchLoopRepeat, nil
+	return resets, nil
 }
 
 func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
