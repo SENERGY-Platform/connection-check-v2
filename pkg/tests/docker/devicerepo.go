@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (repoUrl string, searchUrl string, kafkaUrl string, err error) {
+func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (repoUrl string, kafkaUrl string, err error) {
 	ctx, cancel := context.WithCancel(basectx)
 	defer func() {
 		if err != nil {
@@ -35,53 +35,40 @@ func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (re
 
 	_, zkIp, err := Zookeeper(ctx, wg)
 	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
+		return repoUrl, kafkaUrl, err
 	}
 	zookeeperUrl := zkIp + ":2181"
 
 	kafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
 	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
+		return repoUrl, kafkaUrl, err
 	}
 
 	time.Sleep(1 * time.Second)
 
-	_, searchIp, err := OpenSearch(ctx, wg)
-	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
-	}
-
-	_, permIp, err := PermSearch(ctx, wg, false, kafkaUrl, searchIp)
-	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
-	}
-	searchUrl = "http://" + permIp + ":8080"
-	time.Sleep(10 * time.Second)
-
 	_, mongoIp, err := MongoDB(ctx, wg)
 	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
+		return repoUrl, kafkaUrl, err
 	}
 
-	_, repoIp, err := DeviceRepo(ctx, wg, kafkaUrl, "mongodb://"+mongoIp+":27017", searchUrl)
+	_, repoIp, err := DeviceRepo(ctx, wg, kafkaUrl, "mongodb://"+mongoIp+":27017")
 	if err != nil {
-		return repoUrl, searchUrl, kafkaUrl, err
+		return repoUrl, kafkaUrl, err
 	}
 	repoUrl = "http://" + repoIp + ":8080"
 
-	return repoUrl, searchUrl, kafkaUrl, err
+	return repoUrl, kafkaUrl, err
 }
 
-func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoUrl string, permsearch string) (hostPort string, ipAddress string, err error) {
+func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoUrl string) (hostPort string, ipAddress string, err error) {
 	log.Println("start device-repository")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image: "ghcr.io/senergy-platform/device-repository:dev",
 			Env: map[string]string{
-				"DEBUG":           "true",
-				"KAFKA_URL":       kafkaUrl,
-				"PERMISSIONS_URL": permsearch,
-				"MONGO_URL":       mongoUrl,
+				"DEBUG":     "true",
+				"KAFKA_URL": kafkaUrl,
+				"MONGO_URL": mongoUrl,
 			},
 			ExposedPorts:    []string{"8080/tcp"},
 			WaitingFor:      wait.ForListeningPort("8080/tcp"),

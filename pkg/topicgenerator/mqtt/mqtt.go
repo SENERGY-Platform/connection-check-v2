@@ -34,7 +34,7 @@ func init() {
 	known.Generators["mqtt"] = TopicGenerator
 }
 
-func TopicGenerator(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.PermDevice) (topicCandidates []string, err error) {
+func TopicGenerator(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.ExtendedDevice) (topicCandidates []string, err error) {
 	deviceType, err := deviceTypeProvider.GetDeviceType(device.DeviceTypeId)
 	if err != nil {
 		return topicCandidates, err

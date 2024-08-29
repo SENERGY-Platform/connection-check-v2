@@ -32,7 +32,6 @@ type Config struct {
 	TopicGenerator                     string   `json:"topic_generator"`
 	KafkaUrl                           string   `json:"kafka_url"`
 	DeviceRepositoryUrl                string   `json:"device_repository_url"`
-	PermissionSearchUrl                string   `json:"permission_search_url"`
 	VerneManagementUrl                 string   `json:"verne_management_url"`
 	HandledProtocols                   []string `json:"handled_protocols"`
 	AuthEndpoint                       string   `json:"auth_endpoint"`

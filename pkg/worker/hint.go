@@ -22,7 +22,7 @@ import (
 	"log"
 )
 
-func (this *Worker) getHint(device model.PermDevice) (hint string, used bool) {
+func (this *Worker) getHint(device model.ExtendedDevice) (hint string, used bool) {
 	var temp interface{}
 	temp, used = this.hintstore.Get(device.Id)
 	if used {
@@ -34,6 +34,6 @@ func (this *Worker) getHint(device model.PermDevice) (hint string, used bool) {
 	return
 }
 
-func (this *Worker) storeHint(device model.PermDevice, topic string) {
+func (this *Worker) storeHint(device model.ExtendedDevice, topic string) {
 	this.hintstore.Set(device.Id, topic, cache.DefaultExpiration)
 }

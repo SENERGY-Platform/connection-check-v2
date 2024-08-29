@@ -21,14 +21,12 @@ import (
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
+	"github.com/SENERGY-Platform/device-repository/lib/client"
 	"github.com/SENERGY-Platform/models/go/models"
-	"github.com/SENERGY-Platform/permission-search/lib/client"
-	permmodel "github.com/SENERGY-Platform/permission-search/lib/model"
 	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
@@ -69,7 +67,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 
 	var err error
 
-	config.DeviceRepositoryUrl, config.PermissionSearchUrl, config.KafkaUrl, err = docker.DeviceRepoWithDependencies(ctx, wg)
+	config.DeviceRepositoryUrl, config.KafkaUrl, err = docker.DeviceRepoWithDependencies(ctx, wg)
 	if err != nil {
 		t.Error(err)
 		return
@@ -196,17 +194,10 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	permissions := client.NewClient(config.PermissionSearchUrl)
-	senergyLikeDevices, err := client.List[[]model.PermDevice](permissions, TestToken, "devices", permmodel.ListOptions{
-		QueryListCommons: permmodel.QueryListCommons{
-			Limit:  200,
-			Rights: "r",
-			SortBy: "local_id",
-		},
-		Selection: &permmodel.FeatureSelection{
-			Feature: "device_type_id",
-			Value:   "urn:infai:ses:device-type:0",
-		},
+	deviceRepo := client.NewClient(config.DeviceRepositoryUrl)
+	senergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.DeviceListOptions{
+		DeviceTypeIds: []string{"urn:infai:ses:device-type:0"},
+		Limit:         200,
 	})
 	if err != nil {
 		t.Error(err)
@@ -228,22 +219,15 @@ func TestSenergyDeviceLoop(t *testing.T) {
 			return
 		}
 		expected := num%2 == 0
-		if !reflect.DeepEqual(device.Annotations[worker.ConnectionStateAnnotation], expected) {
+		if !reflect.DeepEqual(device.ConnectionState == models.ConnectionStateOnline, expected) {
 			t.Errorf("%#v", device)
 			return
 		}
 	}
 
-	noneSenergyLikeDevices, err := client.List[[]model.PermDevice](permissions, TestToken, "devices", permmodel.ListOptions{
-		QueryListCommons: permmodel.QueryListCommons{
-			Limit:  200,
-			Rights: "r",
-			SortBy: "local_id",
-		},
-		Selection: &permmodel.FeatureSelection{
-			Feature: "device_type_id",
-			Value:   "urn:infai:ses:device-type:1",
-		},
+	noneSenergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.DeviceListOptions{
+		DeviceTypeIds: []string{"urn:infai:ses:device-type:1"},
+		Limit:         200,
 	})
 	if err != nil {
 		t.Error(err)
@@ -254,7 +238,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 	for _, device := range noneSenergyLikeDevices {
-		if _, ok := device.Annotations[worker.ConnectionStateAnnotation]; ok {
+		if device.ConnectionState != models.ConnectionStateUnknown {
 			t.Errorf("expected no anotation: %#v", device)
 			return
 		}
@@ -283,12 +267,8 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	hubs, err := client.List[[]model.PermHub](permissions, TestToken, "hubs", permmodel.ListOptions{
-		QueryListCommons: permmodel.QueryListCommons{
-			Limit:  200,
-			Rights: "r",
-			SortBy: "name",
-		},
+	hubs, _, err, _ := deviceRepo.ListExtendedHubs(TestToken, client.HubListOptions{
+		Limit: 200,
 	})
 	if err != nil {
 		t.Error(err)
@@ -300,15 +280,15 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	}
 	for _, hub := range hubs {
 		if strings.HasPrefix(hub.Id, "online-") {
-			if !reflect.DeepEqual(hub.Annotations[worker.ConnectionStateAnnotation], true) {
+			if hub.ConnectionState != models.ConnectionStateOnline {
 				t.Errorf("%#v", hub)
 			}
 		} else if strings.HasPrefix(hub.Id, "offline-") {
-			if !reflect.DeepEqual(hub.Annotations[worker.ConnectionStateAnnotation], false) {
+			if hub.ConnectionState != models.ConnectionStateOffline {
 				t.Errorf("%#v", hub)
 			}
 		} else {
-			if _, ok := hub.Annotations[worker.ConnectionStateAnnotation]; ok {
+			if hub.ConnectionState != models.ConnectionStateUnknown {
 				t.Errorf("expected no anotation: %#v", hub)
 			}
 		}

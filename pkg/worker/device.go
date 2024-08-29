@@ -81,13 +81,13 @@ type ConnectionLogger interface {
 }
 
 type DeviceProvider interface {
-	GetNextDevice() (device model.PermDevice, isFirstDeviceOfBatchLoopRepeat bool, err error)
-	GetDevice(id string) (result model.PermDevice, err error)
+	GetNextDevice() (device model.ExtendedDevice, isFirstDeviceOfBatchLoopRepeat bool, err error)
+	GetDevice(id string) (result model.ExtendedDevice, err error)
 }
 
 type HubProvider interface {
-	GetNextHub() (device model.PermHub, err error)
-	GetHub(id string) (result model.PermHub, err error)
+	GetNextHub() (hub model.ExtendedHub, isFirstHubOfBatchLoopRepeat bool, err error)
+	GetHub(id string) (result model.ExtendedHub, err error)
 }
 
 type Verne interface {
@@ -171,12 +171,10 @@ func getFatalErrOnRepeatHandler(maxCount int64) func(error) {
 	}
 }
 
-const ConnectionStateAnnotation = "connected"
-
 func (this *Worker) runDeviceCheck() (isFirstDeviceOfBatchLoopRepeat bool, err error) {
 	this.metrics.DevicesChecked.Inc()
 	start := time.Now()
-	var device model.PermDevice
+	var device model.ExtendedDevice
 	device, isFirstDeviceOfBatchLoopRepeat, err = this.deviceprovider.GetNextDevice()
 	if errors.Is(err, providers.ErrNoMatchingDevice) {
 		log.Println("no device to check found")
@@ -197,22 +195,14 @@ func (this *Worker) runDeviceCheck() (isFirstDeviceOfBatchLoopRepeat bool, err e
 		return isFirstDeviceOfBatchLoopRepeat, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
-	annotation, ok := device.Annotations[ConnectionStateAnnotation]
-	if !ok {
-		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
-	}
-	expected, ok := annotation.(bool)
-	if !ok {
-		log.Printf("WARNING: unexpected device state anotation in %#v", device)
-		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
-	}
-	if expected != isOnline {
+	expected := device.ConnectionState == models.ConnectionStateOnline
+	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown {
 		return isFirstDeviceOfBatchLoopRepeat, this.updateDeviceState(device, isOnline)
 	}
 	return isFirstDeviceOfBatchLoopRepeat, nil
 }
 
-func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlineSubscriptionExists bool, err error) {
+func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
 	if this.config.Debug {
 		defer func() {
 			log.Printf("DEBUG: check device id=%v owner=%v local-id=%v result=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, onlineSubscriptionExists, err)
@@ -241,19 +231,15 @@ func (this *Worker) checkTopics(device model.PermDevice, topics []string) (onlin
 	return
 }
 
-func (this *Worker) updateDeviceState(device model.PermDevice, online bool) error {
+func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) error {
 	reloaded, err := this.deviceprovider.GetDevice(device.Id)
 	if err != nil {
 		log.Println("WARNING: unable to reload device info", err)
+		return err
 	}
-	annotation, ok := reloaded.Annotations[ConnectionStateAnnotation]
-	if ok {
-		currentState, ok := annotation.(bool)
-		if !ok {
-			log.Printf("WARNING: unexpected device state anotation in %#v", device)
-		} else if currentState == online {
-			return nil //connection check has been too slow and the device has already the new online state
-		}
+	currentlyOnline := reloaded.ConnectionState == models.ConnectionStateOnline
+	if currentlyOnline == online && reloaded.ConnectionState != models.ConnectionStateUnknown {
+		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {
 		return this.logger.LogDeviceConnect(device.Id)

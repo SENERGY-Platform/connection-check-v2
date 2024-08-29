@@ -22,8 +22,6 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	devicerepo "github.com/SENERGY-Platform/device-repository/lib/client"
 	devicemodel "github.com/SENERGY-Platform/device-repository/lib/model"
-	"github.com/SENERGY-Platform/permission-search/lib/client"
-	permmodel "github.com/SENERGY-Platform/permission-search/lib/model"
 	"log"
 	"strings"
 	"sync"
@@ -39,7 +37,6 @@ func NewHubProvider(config configuration.Config, tokengen TokenGenerator, device
 		config:      config,
 		tokengen:    tokengen,
 		devicetypes: devicetypes,
-		permissions: client.NewClient(config.PermissionSearchUrl),
 		cache:       NewCache(expiration),
 		devicerepo:  devicerepo.NewClient(config.DeviceRepositoryUrl),
 	}
@@ -59,10 +56,9 @@ type HubProvider struct {
 	tokengen         TokenGenerator
 	devicetypes      DeviceTypeProviderInterface
 	devicerepo       devicerepo.Interface
-	permissions      client.Client
-	batch            []model.PermHub
+	batch            []model.ExtendedHub
 	nextBatchIndex   int
-	lastHub          model.PermHub
+	offset           int64
 	lastRequest      time.Time
 	maxAge           time.Duration
 	mux              sync.Mutex
@@ -70,39 +66,53 @@ type HubProvider struct {
 	cache            *Cache
 }
 
-func (this *HubProvider) GetNextHub() (hub model.PermHub, err error) {
+func (this *HubProvider) GetNextHub() (hub model.ExtendedHub, isFirstHubOfBatchLoopRepeat bool, err error) {
 	this.mux.Lock()
 	defer this.mux.Unlock()
 	if time.Since(this.lastRequest) > this.maxAge {
 		if this.config.Debug {
 			log.Println("max age: reset hub batch")
 		}
-		this.batch = []model.PermHub{}
+		this.batch = []model.ExtendedHub{}
 		this.nextBatchIndex = 0
 	}
+	backToBeginningCount := 0
 	for hub.Id == "" && err == nil {
 		hub, err = this.getNextHubFromBatch()
 		if err == nil {
-			this.lastHub = hub
 			match, err := this.HubMatchesProtocol(hub)
 			if err != nil {
-				return hub, err
+				return hub, isFirstHubOfBatchLoopRepeat, err
 			}
 			if !match {
-				hub = model.PermHub{}
+				hub = model.ExtendedHub{}
 			}
 		}
-		if err == EmptyBatch {
-			err = this.loadBatch()
+		if !errors.Is(err, EmptyBatch) {
+			this.offset = this.offset + 1
+		} else {
+			backToBeginning := false
+			this.nextBatchIndex = 0
+			this.batch, backToBeginning, err = this.loadBatch(this.offset)
 			if err != nil {
-				return hub, err
+				return hub, isFirstHubOfBatchLoopRepeat, err
+			}
+			if backToBeginning {
+				isFirstHubOfBatchLoopRepeat = true
+				this.offset = 0
+				backToBeginningCount++
+				if backToBeginningCount >= 2 {
+					return hub, isFirstHubOfBatchLoopRepeat, ErrNoMatchingHub
+				}
 			}
 		}
 	}
-	return hub, err
+	return hub, isFirstHubOfBatchLoopRepeat, err
 }
 
-func (this *HubProvider) getNextHubFromBatch() (hub model.PermHub, err error) {
+var ErrNoMatchingHub = errors.New("no matching hub")
+
+func (this *HubProvider) getNextHubFromBatch() (hub model.ExtendedHub, err error) {
 	if this.nextBatchIndex >= len(this.batch) {
 		return hub, EmptyBatch
 	}
@@ -111,81 +121,44 @@ func (this *HubProvider) getNextHubFromBatch() (hub model.PermHub, err error) {
 	return this.batch[index], nil
 }
 
-func (this *HubProvider) GetHub(id string) (result model.PermHub, err error) {
+func (this *HubProvider) GetHub(id string) (result model.ExtendedHub, err error) {
 	token, err := this.tokengen.Access()
 	if err != nil {
 		return result, err
 	}
-	temp, _, err := client.Query[[]model.PermHub](this.permissions, token, permmodel.QueryMessage{
-		Resource: "hubs",
-		ListIds: &permmodel.QueryListIds{
-			QueryListCommons: permmodel.QueryListCommons{
-				Limit:  1,
-				Offset: 0,
-			},
-			Ids: []string{id},
-		},
-	})
-	if err != nil {
-		return result, err
-	}
-	if len(temp) == 1 {
-		return temp[0], nil
-	}
-	return result, errors.New("hub not found")
+	result, err, _ = this.devicerepo.ReadExtendedHub(id, token, devicemodel.READ)
+	return result, err
 }
 
-func (this *HubProvider) loadBatch() error {
+func (this *HubProvider) loadBatch(offset int64) (batch []model.ExtendedHub, backToTheBeginning bool, err error) {
 	if this.config.Debug {
 		log.Println("load hub batch", this.config.PermissionsRequestHubBatchSize)
 	}
 	token, err := this.tokengen.Access()
 	if err != nil {
-		return err
+		return nil, false, err
 	}
-	var after *permmodel.ListAfter
-	if this.lastHub.Id != "" {
-		after = &permmodel.ListAfter{
-			Id: this.lastHub.Id,
-		}
-		if this.config.Debug {
-			log.Printf("use after %#v", *after)
-		}
-	}
-	this.lastRequest = time.Now()
-	list, err := client.List[[]model.PermHub](this.permissions, token, "hubs", permmodel.ListOptions{
-		QueryListCommons: permmodel.QueryListCommons{
-			Limit:  this.config.PermissionsRequestHubBatchSize,
-			After:  after,
-			Rights: "r",
-			SortBy: "id",
-		},
+	batch, _, err, _ = this.devicerepo.ListExtendedHubs(token, devicerepo.HubListOptions{
+		Limit:  int64(this.config.PermissionsRequestHubBatchSize),
+		Offset: offset,
 	})
 	if err != nil {
-		return err
+		return nil, false, err
 	}
-	if len(list) == 0 {
+	if len(batch) == 0 {
+		backToTheBeginning = true
 		if this.config.Debug {
-			log.Println("load hub batch from beginning")
+			log.Println("load batch from beginning")
 		}
-		this.lastRequest = time.Now()
-		list, err = client.List[[]model.PermHub](this.permissions, token, "hubs", permmodel.ListOptions{
-			QueryListCommons: permmodel.QueryListCommons{
-				Limit:  this.config.PermissionsRequestHubBatchSize,
-				Rights: "r",
-				SortBy: "id",
-			},
+		batch, _, err, _ = this.devicerepo.ListExtendedHubs(token, devicerepo.HubListOptions{
+			Limit:  int64(this.config.PermissionsRequestHubBatchSize),
+			Offset: offset,
 		})
-		if err != nil {
-			return err
-		}
 	}
-	this.batch = list
-	this.nextBatchIndex = 0
-	return nil
+	return batch, backToTheBeginning, nil
 }
 
-func (this *HubProvider) HubMatchesProtocol(hub model.PermHub) (result bool, err error) {
+func (this *HubProvider) HubMatchesProtocol(hub model.ExtendedHub) (result bool, err error) {
 	err = this.cache.Use("hubmatchesprotocols."+hub.Id, func() (interface{}, error) {
 		token, err := this.tokengen.Access()
 		if err != nil {

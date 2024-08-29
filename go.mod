@@ -1,12 +1,13 @@
 module github.com/SENERGY-Platform/connection-check-v2
 
-go 1.22
+go 1.23
+
+toolchain go1.23.0
 
 require (
-	github.com/SENERGY-Platform/device-repository v0.0.30
-	github.com/SENERGY-Platform/models/go v0.0.0-20240627082833-157bd627a94f
-	github.com/SENERGY-Platform/mqtt-platform-connector v0.0.20
-	github.com/SENERGY-Platform/permission-search v0.0.16
+	github.com/SENERGY-Platform/device-repository v0.1.10
+	github.com/SENERGY-Platform/models/go v0.0.0-20240829060132-21bc8cc47937
+	github.com/SENERGY-Platform/mqtt-platform-connector v0.0.21
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/google/uuid v1.6.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -18,11 +19,12 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
-	github.com/IBM/sarama v1.43.2 // indirect
+	github.com/IBM/sarama v1.43.3 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.12.4 // indirect
+	github.com/SENERGY-Platform/permission-search v0.0.22 // indirect
 	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20240709092939-b6153d631069 // indirect
-	github.com/SENERGY-Platform/service-commons v0.0.0-20240708085423-94423a495d7f // indirect
+	github.com/SENERGY-Platform/service-commons v0.0.0-20240813072046-91b3195dd8fc // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -36,7 +38,7 @@ require (
 	github.com/docker/docker v26.1.4+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/eapache/go-resiliency v1.6.0 // indirect
+	github.com/eapache/go-resiliency v1.7.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20230731223053-c322873962e3 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -85,19 +87,19 @@ require (
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
-	github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.mongodb.org/mongo-driver v1.16.0 // indirect
+	go.mongodb.org/mongo-driver v1.16.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 // indirect
 	go.opentelemetry.io/otel v1.27.0 // indirect
 	go.opentelemetry.io/otel/metric v1.27.0 // indirect
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/crypto v0.26.0 // indirect
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
-	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240624140628-dc46fd24d27d // indirect
 	google.golang.org/grpc v1.64.0 // indirect

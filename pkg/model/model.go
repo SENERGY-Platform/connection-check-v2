@@ -16,21 +16,11 @@
 
 package model
 
-type PermDevice struct {
-	Id           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	LocalId      string                 `json:"local_id"`
-	DeviceTypeId string                 `json:"device_type_id"`
-	Annotations  map[string]interface{} `json:"annotations"`
-	OwnerId      string                 `json:"owner_id"`
-}
+import "github.com/SENERGY-Platform/models/go/models"
 
-type PermHub struct {
-	Id          string                 `json:"id"`
-	Name        string                 `json:"name"`
-	DeviceIds   []string               `json:"device_ids"`
-	Annotations map[string]interface{} `json:"annotations"`
-}
+type ExtendedDevice = models.ExtendedDevice
+
+type ExtendedHub = models.ExtendedHub
 
 type PermDeviceType struct {
 	Id   string `json:"id"`

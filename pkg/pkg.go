@@ -25,7 +25,7 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
-	"github.com/SENERGY-Platform/permission-search/lib/client"
+	"github.com/SENERGY-Platform/device-repository/lib/client"
 	"log"
 	"runtime/debug"
 	"sync"
@@ -47,8 +47,8 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	}
 
 	if config.ExportTotalConnected {
-		perm := client.NewClient(config.PermissionSearchUrl)
-		metrics.SetOnMetricsServeRequest(getOnMetricsServeRequestHandler(tokengen, perm, metrics))
+		repo := client.NewClient(config.DeviceRepositoryUrl)
+		metrics.SetOnMetricsServeRequest(getOnMetricsServeRequestHandler(tokengen, repo, metrics))
 	}
 
 	logger, err := connectionlog.New(ctx, wg, config, metrics)
@@ -87,7 +87,7 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	return nil
 }
 
-func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client, metrics *prometheus.Metrics) func() {
+func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.Interface, metrics *prometheus.Metrics) func() {
 	return func() {
 		token, err := tokengen.Access()
 		if err != nil {
@@ -102,12 +102,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			connected, err := perm.Total(token, "devices", client.ListOptions{
-				Selection: &client.FeatureSelection{
-					Feature: "annotations.connected",
-					Value:   "true",
-				},
-			})
+			_, connected, err, _ := deviceRepo.ListExtendedDevices(token, client.DeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
 			if err != nil {
 				log.Println("ERROR: unable to load total connected device count from permission-search;", err)
 				return
@@ -118,12 +113,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			disconnected, err := perm.Total(token, "devices", client.ListOptions{
-				Selection: &client.FeatureSelection{
-					Feature: "annotations.connected",
-					Value:   "false",
-				},
-			})
+			_, disconnected, err, _ := deviceRepo.ListExtendedDevices(token, client.DeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
 			if err != nil {
 				log.Println("ERROR: unable to load total disconnected device count from permission-search;", err)
 				return
@@ -134,12 +124,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			connected, err := perm.Total(token, "hubs", client.ListOptions{
-				Selection: &client.FeatureSelection{
-					Feature: "annotations.connected",
-					Value:   "true",
-				},
-			})
+			_, connected, err, _ := deviceRepo.ListExtendedHubs(token, client.HubListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
 			if err != nil {
 				log.Println("ERROR: unable to load total connected hub count from permission-search;", err)
 				return
@@ -150,12 +135,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, perm client.Client
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			disconnected, err := perm.Total(token, "hubs", client.ListOptions{
-				Selection: &client.FeatureSelection{
-					Feature: "annotations.connected",
-					Value:   "false",
-				},
-			})
+			_, disconnected, err, _ := deviceRepo.ListExtendedHubs(token, client.HubListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
 			if err != nil {
 				log.Println("ERROR: unable to load total disconnected hub count from permission-search;", err)
 				return

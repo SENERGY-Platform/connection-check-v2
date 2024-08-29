@@ -137,7 +137,7 @@ func TestMqttTopicGenerator(t *testing.T) {
 	const longDeviceId = "urn:infai:ses:device:6bd07b75-d7cc-4a1a-88db-ac93f61aa7b3"
 	const protocolId = "pid"
 
-	//config configuration.Config, deviceTypeProvider DeviceTypeProvider, device model.PermDevice
+	//config configuration.Config, deviceTypeProvider DeviceTypeProvider, device model.ExtendedDevice
 	topics, err := known.Generators["mqtt"](
 		configuration.Config{
 			HandledProtocols: []string{protocolId},
@@ -212,11 +212,13 @@ func TestMqttTopicGenerator(t *testing.T) {
 					},
 				},
 			},
-		}, model.PermDevice{
-			Id:           longDeviceId,
-			LocalId:      "foo",
-			Name:         "bar",
-			DeviceTypeId: "dt1",
+		}, model.ExtendedDevice{
+			Device: models.Device{
+				Id:           longDeviceId,
+				LocalId:      "foo",
+				Name:         "bar",
+				DeviceTypeId: "dt1",
+			},
 		})
 	if err != nil {
 		t.Error(err)

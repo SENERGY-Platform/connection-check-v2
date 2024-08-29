@@ -26,4 +26,4 @@ type DeviceTypeProvider interface {
 	GetDeviceType(deviceTypeId string) (dt models.DeviceType, err error)
 }
 
-type TopicGenerator = func(config configuration.Config, deviceTypeProvider DeviceTypeProvider, device model.PermDevice) (topicCandidates []string, err error)
+type TopicGenerator = func(config configuration.Config, deviceTypeProvider DeviceTypeProvider, device model.ExtendedDevice) (topicCandidates []string, err error)

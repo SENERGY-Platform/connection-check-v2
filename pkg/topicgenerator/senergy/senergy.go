@@ -25,7 +25,7 @@ import (
 )
 
 func init() {
-	known.Generators["senergy"] = func(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.PermDevice) (topicCandidates []string, err error) {
+	known.Generators["senergy"] = func(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.ExtendedDevice) (topicCandidates []string, err error) {
 		topicCandidates = append(topicCandidates,
 			fmt.Sprintf("command/%v/%v/+", device.OwnerId, device.LocalId),
 			fmt.Sprintf("command/%v/+", device.LocalId), //fallback to old topic structure

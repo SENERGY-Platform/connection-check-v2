@@ -18,32 +18,51 @@ package docker
 
 import (
 	"context"
-	"github.com/testcontainers/testcontainers-go"
-	"io"
+	"errors"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
-	"os"
+	"net"
+	"time"
 )
 
-func Dockerlog(ctx context.Context, container testcontainers.Container, name string) error {
-	l, err := container.Logs(ctx)
+func getFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
-		return err
+		return 0, err
 	}
-	out := &LogWriter{logger: log.New(os.Stdout, "["+name+"] ", log.LstdFlags)}
-	go func() {
-		_, err := io.Copy(out, l)
+
+	listener, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port, nil
+}
+
+func waitretry(timeout time.Duration, f func(ctx context.Context, target wait.StrategyTarget) error) func(ctx context.Context, target wait.StrategyTarget) error {
+	return func(ctx context.Context, target wait.StrategyTarget) (err error) {
+		return retry(timeout, func() error {
+			return f(ctx, target)
+		})
+	}
+}
+
+func retry(timeout time.Duration, f func() error) (err error) {
+	err = errors.New("initial")
+	start := time.Now()
+	for i := int64(1); err != nil && time.Since(start) < timeout; i++ {
+		err = f()
 		if err != nil {
-			log.Println("ERROR: unable to copy docker log", err)
+			log.Println("ERROR: :", err)
+			wait := time.Duration(i) * time.Second
+			if time.Since(start)+wait < timeout {
+				log.Println("ERROR: retry after:", wait.String())
+				time.Sleep(wait)
+			} else {
+				time.Sleep(time.Since(start) + wait - timeout)
+				return f()
+			}
 		}
-	}()
-	return nil
-}
-
-type LogWriter struct {
-	logger *log.Logger
-}
-
-func (this *LogWriter) Write(p []byte) (n int, err error) {
-	this.logger.Print(string(p))
-	return len(p), nil
+	}
+	return err
 }
