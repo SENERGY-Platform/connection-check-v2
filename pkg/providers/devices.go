@@ -76,7 +76,7 @@ func (this *DeviceProvider) GetDevice(id string) (result model.ExtendedDevice, e
 	if err != nil {
 		return result, err
 	}
-	result, err, _ = this.client.ReadExtendedDevice(id, token, clientmodel.READ)
+	result, err, _ = this.client.ReadExtendedDevice(id, token, clientmodel.READ, false)
 	return result, err
 }
 
@@ -88,7 +88,7 @@ func (this *DeviceProvider) getDevices(offset int64) (result []model.ExtendedDev
 	if err != nil {
 		return nil, err
 	}
-	result, _, err, _ = this.client.ListExtendedDevices(token, client.DeviceListOptions{
+	result, _, err, _ = this.client.ListExtendedDevices(token, client.ExtendedDeviceListOptions{
 		Limit:  int64(this.config.PermissionsRequestDeviceBatchSize),
 		Offset: offset,
 	})

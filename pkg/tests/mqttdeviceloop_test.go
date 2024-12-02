@@ -136,7 +136,7 @@ func TestMqttDeviceLoop(t *testing.T) {
 	}
 
 	deviceRepo := client.NewClient(config.DeviceRepositoryUrl)
-	senergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.DeviceListOptions{
+	senergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.ExtendedDeviceListOptions{
 		DeviceTypeIds: []string{"urn:infai:ses:device-type:0"},
 		Limit:         200,
 	})
@@ -155,7 +155,7 @@ func TestMqttDeviceLoop(t *testing.T) {
 		}
 	}
 
-	noneSenergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.DeviceListOptions{
+	noneSenergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.ExtendedDeviceListOptions{
 		DeviceTypeIds: []string{"urn:infai:ses:device-type:1"},
 		Limit:         200,
 	})

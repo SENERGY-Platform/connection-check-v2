@@ -102,7 +102,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, connected, err, _ := deviceRepo.ListExtendedDevices(token, client.DeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
+			_, connected, err, _ := deviceRepo.ListExtendedDevices(token, client.ExtendedDeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
 			if err != nil {
 				log.Println("ERROR: unable to load total connected device count from permission-search;", err)
 				return
@@ -113,7 +113,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, disconnected, err, _ := deviceRepo.ListExtendedDevices(token, client.DeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
+			_, disconnected, err, _ := deviceRepo.ListExtendedDevices(token, client.ExtendedDeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
 			if err != nil {
 				log.Println("ERROR: unable to load total disconnected device count from permission-search;", err)
 				return
