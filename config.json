@@ -5,7 +5,6 @@
     "kafka_url": "",
     "verne_management_url": "",
     "device_repository_url": "https://api.senergy.infai.org/device-repository",
-    "permission_search_url": "https://api.senergy.infai.org/permissions/query",
     "device_type_cache_expiration": "30m",
     "hub_protocol_check_cache_expiration": "1h",
     "handled_protocols": ["urn:infai:ses:protocol:f3a63aeb-187e-4dd9-9ef5-d97a6eb6292b"],
