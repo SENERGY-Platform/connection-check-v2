@@ -47,7 +47,7 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	}
 
 	if config.ExportTotalConnected {
-		repo := client.NewClient(config.DeviceRepositoryUrl)
+		repo := client.NewClient(config.DeviceRepositoryUrl, nil)
 		metrics.SetOnMetricsServeRequest(getOnMetricsServeRequestHandler(tokengen, repo, metrics))
 	}
 

@@ -29,7 +29,7 @@ func NewDeviceTypeProvider(config configuration.Config, tokengen TokenGenerator)
 		return nil, err
 	}
 	return &DeviceTypeProvider{
-		client:   client.NewClient(config.DeviceRepositoryUrl),
+		client:   client.NewClient(config.DeviceRepositoryUrl, nil),
 		tokengen: tokengen,
 		cache:    NewCache(expiration),
 	}, nil

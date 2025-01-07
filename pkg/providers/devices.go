@@ -31,7 +31,7 @@ func NewDeviceProvider(config configuration.Config, tokengen TokenGenerator, dev
 		config:      config,
 		tokengen:    tokengen,
 		devicetypes: devicetypes,
-		client:      client.NewClient(config.DeviceRepositoryUrl),
+		client:      client.NewClient(config.DeviceRepositoryUrl, nil),
 	}
 	result.handledProtocols = map[string]bool{}
 	for _, protocolId := range config.HandledProtocols {

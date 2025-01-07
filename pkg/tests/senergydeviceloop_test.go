@@ -192,7 +192,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	deviceRepo := client.NewClient(config.DeviceRepositoryUrl)
+	deviceRepo := client.NewClient(config.DeviceRepositoryUrl, nil)
 	senergyLikeDevices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.ExtendedDeviceListOptions{
 		DeviceTypeIds: []string{"urn:infai:ses:device-type:0"},
 		Limit:         200,

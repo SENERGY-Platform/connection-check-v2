@@ -36,7 +36,7 @@ func NewHubProvider(config configuration.Config, tokengen TokenGenerator, device
 		tokengen:    tokengen,
 		devicetypes: devicetypes,
 		cache:       NewCache(expiration),
-		devicerepo:  devicerepo.NewClient(config.DeviceRepositoryUrl),
+		devicerepo:  devicerepo.NewClient(config.DeviceRepositoryUrl, nil),
 	}
 	result.handledProtocols = map[string]bool{}
 	for _, protocolId := range config.HandledProtocols {
