@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
@@ -646,13 +647,13 @@ func (this *Mock) CheckClient(clientId string) (result bool, err error) {
 	return true, nil
 }
 
-func (this *Mock) LogDeviceDisconnect(id string) error {
-	log.Println("LogDeviceDisconnect", id)
+func (this *Mock) LogDeviceDisconnect(device model.ExtendedDevice) error {
+	log.Println("LogDeviceDisconnect", device.Id)
 	return nil
 }
 
-func (this *Mock) LogDeviceConnect(id string) error {
-	log.Println("LogDeviceConnect", id)
+func (this *Mock) LogDeviceConnect(device model.ExtendedDevice) error {
+	log.Println("LogDeviceConnect", device.Id)
 	return nil
 }
 

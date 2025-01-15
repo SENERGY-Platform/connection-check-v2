@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/segmentio/kafka-go"
 	"io"
@@ -70,13 +71,21 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 	return writer
 }
 
-func (this *Logger) LogDeviceDisconnect(id string) error {
+func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceDisconnected.Inc()
-	log.Printf("log device %v as disconnected", id)
+	log.Printf("log device %v as disconnected", device.Id)
+	monitorConnectionState := ""
+	for _, attr := range device.Attributes {
+		if attr.Key == "monitor_connection_state" {
+			monitorConnectionState = attr.Value
+		}
+	}
 	b, err := json.Marshal(DeviceLog{
-		Connected: false,
-		Id:        id,
-		Time:      time.Now(),
+		Connected:              false,
+		Id:                     device.Id,
+		Time:                   time.Now(),
+		MonitorConnectionState: monitorConnectionState,
+		DeviceOwner:            device.OwnerId,
 	})
 	if err != nil {
 		return err
@@ -84,20 +93,28 @@ func (this *Logger) LogDeviceDisconnect(id string) error {
 	return this.devices.WriteMessages(
 		context.Background(),
 		kafka.Message{
-			Key:   []byte(id),
+			Key:   []byte(device.Id),
 			Value: b,
 			Time:  time.Now(),
 		},
 	)
 }
 
-func (this *Logger) LogDeviceConnect(id string) error {
+func (this *Logger) LogDeviceConnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceConnected.Inc()
-	log.Printf("log device %v as connected", id)
+	log.Printf("log device %v as connected", device.Id)
+	monitorConnectionState := ""
+	for _, attr := range device.Attributes {
+		if attr.Key == "monitor_connection_state" {
+			monitorConnectionState = attr.Value
+		}
+	}
 	b, err := json.Marshal(DeviceLog{
-		Connected: true,
-		Id:        id,
-		Time:      time.Now(),
+		Connected:              true,
+		Id:                     device.Id,
+		Time:                   time.Now(),
+		MonitorConnectionState: monitorConnectionState,
+		DeviceOwner:            device.OwnerId,
 	})
 	if err != nil {
 		return err
@@ -105,7 +122,7 @@ func (this *Logger) LogDeviceConnect(id string) error {
 	return this.devices.WriteMessages(
 		context.Background(),
 		kafka.Message{
-			Key:   []byte(id),
+			Key:   []byte(device.Id),
 			Value: b,
 			Time:  time.Now(),
 		},

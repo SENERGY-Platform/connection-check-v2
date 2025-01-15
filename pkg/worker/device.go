@@ -74,8 +74,8 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 }
 
 type ConnectionLogger interface {
-	LogDeviceDisconnect(id string) error
-	LogDeviceConnect(id string) error
+	LogDeviceDisconnect(device model.ExtendedDevice) error
+	LogDeviceConnect(device model.ExtendedDevice) error
 	LogHubDisconnect(id string) error
 	LogHubConnect(id string) error
 }
@@ -242,8 +242,8 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) 
 		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {
-		return this.logger.LogDeviceConnect(device.Id)
+		return this.logger.LogDeviceConnect(device)
 	} else {
-		return this.logger.LogDeviceDisconnect(device.Id)
+		return this.logger.LogDeviceDisconnect(device)
 	}
 }
