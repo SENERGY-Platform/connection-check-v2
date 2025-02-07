@@ -16,7 +16,9 @@
 
 package connectionlog
 
-import "time"
+import (
+	"time"
+)
 
 type HubLog struct {
 	Id        string    `json:"id"`
@@ -30,4 +32,5 @@ type DeviceLog struct {
 	Time                   time.Time `json:"time"`
 	MonitorConnectionState string    `json:"monitor_connection_state"`
 	DeviceOwner            string    `json:"device_owner"`
+	DeviceName             string    `json:"device_name"`
 }

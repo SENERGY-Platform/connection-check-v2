@@ -86,6 +86,7 @@ func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 		Time:                   time.Now(),
 		MonitorConnectionState: monitorConnectionState,
 		DeviceOwner:            device.OwnerId,
+		DeviceName:             device.DisplayName,
 	})
 	if err != nil {
 		return err
@@ -103,18 +104,13 @@ func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 func (this *Logger) LogDeviceConnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceConnected.Inc()
 	log.Printf("log device %v as connected", device.Id)
-	monitorConnectionState := ""
-	for _, attr := range device.Attributes {
-		if attr.Key == "monitor_connection_state" {
-			monitorConnectionState = attr.Value
-		}
-	}
 	b, err := json.Marshal(DeviceLog{
 		Connected:              true,
 		Id:                     device.Id,
 		Time:                   time.Now(),
-		MonitorConnectionState: monitorConnectionState,
+		MonitorConnectionState: model.GetMonitorConnectionState(device),
 		DeviceOwner:            device.OwnerId,
+		DeviceName:             device.DisplayName,
 	})
 	if err != nil {
 		return err

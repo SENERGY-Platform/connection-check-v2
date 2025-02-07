@@ -26,3 +26,12 @@ type PermDeviceType struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
+
+func GetMonitorConnectionState(device ExtendedDevice) string {
+	for _, attr := range device.Attributes {
+		if attr.Key == "monitor_connection_state" {
+			return attr.Value
+		}
+	}
+	return ""
+}

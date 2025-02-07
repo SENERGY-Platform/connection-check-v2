@@ -184,7 +184,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 		return resets, err
 	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
-	if err == common.NoSubscriptionExpected {
+	if errors.Is(err, common.NoSubscriptionExpected) {
 		return resets, nil
 	}
 	if err != nil {
@@ -238,7 +238,7 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) 
 		return err
 	}
 	currentlyOnline := reloaded.ConnectionState == models.ConnectionStateOnline
-	if currentlyOnline == online && reloaded.ConnectionState != models.ConnectionStateUnknown {
+	if currentlyOnline == online && reloaded.ConnectionState != models.ConnectionStateUnknown && model.GetMonitorConnectionState(device) == "" {
 		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {

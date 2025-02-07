@@ -64,7 +64,7 @@ func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoU
 	log.Println("start device-repository")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: "ghcr.io/senergy-platform/device-repository:dev",
+			Image: "ghcr.io/senergy-platform/device-repository:prod",
 			Env: map[string]string{
 				"DEBUG":     "true",
 				"KAFKA_URL": kafkaUrl,
