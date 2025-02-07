@@ -196,7 +196,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	expected := device.ConnectionState == models.ConnectionStateOnline
-	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown {
+	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown || model.GetMonitorConnectionState(device) != "" {
 		return resets, this.updateDeviceState(device, isOnline)
 	}
 	return resets, nil
@@ -238,12 +238,12 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) 
 		return err
 	}
 	currentlyOnline := reloaded.ConnectionState == models.ConnectionStateOnline
-	if currentlyOnline == online && reloaded.ConnectionState != models.ConnectionStateUnknown && model.GetMonitorConnectionState(device) == "" {
+	if currentlyOnline == online && reloaded.ConnectionState != models.ConnectionStateUnknown && model.GetMonitorConnectionState(reloaded) == "" {
 		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {
-		return this.logger.LogDeviceConnect(device)
+		return this.logger.LogDeviceConnect(reloaded)
 	} else {
-		return this.logger.LogDeviceDisconnect(device)
+		return this.logger.LogDeviceDisconnect(reloaded)
 	}
 }
