@@ -62,6 +62,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		DeviceCheckTopicHintExpiration:     "1h",
 		UseDeviceCheckTopicHintExclusively: false,
 		PrometheusPort:                     "8080",
+		MaxErrorCountTilFatal:              -1,
 	}
 
 	var err error
@@ -83,8 +84,6 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
-	time.Sleep(10 * time.Second)
 
 	err = createDummyHubs(config)
 	if err != nil {
@@ -180,15 +179,15 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	mock.Mutex.Lock()
 	defer mock.Mutex.Unlock()
 
-	if slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-1-0/+") {
+	if slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-1-0/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-0-98/+") {
+	if !slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-98/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/testowner/lid-0-99/+") {
+	if !slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-99/+") {
 		t.Errorf("%#v", mock.CheckTopicCalls)
 		return
 	}
@@ -393,42 +392,18 @@ func sendInitialHubConnectionStates(config configuration.Config) error {
 }
 
 func createDummyDevices(config configuration.Config) error {
-	writer := kafka.Writer{
-		Addr:        kafka.TCP(config.KafkaUrl),
-		Topic:       "devices",
-		MaxAttempts: 10,
-		BatchSize:   1,
-		Balancer:    &kafka.Hash{},
-	}
-	defer writer.Close()
+	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 200; j++ {
 			devicetypeindex := strconv.Itoa(i)
 			deviceindex := devicetypeindex + "-" + strconv.Itoa(j)
 			id := "urn:infai:ses:device:" + deviceindex
-			b, err := json.Marshal(map[string]interface{}{
-				"command": "PUT",
-				"id":      id,
-				"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
-				"device": models.Device{
-					Id:           id,
-					LocalId:      "lid-" + deviceindex,
-					Name:         deviceindex,
-					DeviceTypeId: "urn:infai:ses:device-type:" + devicetypeindex,
-					OwnerId:      "testowner",
-				},
-			})
-			if err != nil {
-				return err
-			}
-			err = writer.WriteMessages(
-				context.Background(),
-				kafka.Message{
-					Key:   []byte(id),
-					Value: b,
-					Time:  time.Now(),
-				},
-			)
+			_, err, _ := c.SetDevice(TestToken, models.Device{
+				Id:           id,
+				LocalId:      "lid-" + deviceindex,
+				Name:         deviceindex,
+				DeviceTypeId: "urn:infai:ses:device-type:" + devicetypeindex,
+			}, client.DeviceUpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -438,34 +413,12 @@ func createDummyDevices(config configuration.Config) error {
 }
 
 func createDummyHubs(config configuration.Config) error {
-	writer := kafka.Writer{
-		Addr:        kafka.TCP(config.KafkaUrl),
-		Topic:       "hubs",
-		MaxAttempts: 10,
-		BatchSize:   1,
-		Balancer:    &kafka.Hash{},
-	}
-	defer writer.Close()
+	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	hubs := getDummyHubs()
 	for _, hub := range hubs {
-		b, err := json.Marshal(map[string]interface{}{
-			"command": "PUT",
-			"id":      hub.Id,
-			"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
-			"hub":     hub,
-		})
+		_, err, _ := c.SetHub(TestToken, hub)
 		if err != nil {
-			return err
-		}
-		err = writer.WriteMessages(
-			context.Background(),
-			kafka.Message{
-				Key:   []byte(hub.Id),
-				Value: b,
-				Time:  time.Now(),
-			},
-		)
-		if err != nil {
+			log.Printf("TEST: %#v", hub)
 			return err
 		}
 	}
@@ -526,7 +479,6 @@ func getDummyHubs() (result []models.Hub) {
 		result = append(result, models.Hub{
 			Id:             "online-" + strconv.Itoa(i),
 			Name:           "online-" + strconv.Itoa(i),
-			OwnerId:        "testowner",
 			Hash:           "",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,
@@ -541,7 +493,6 @@ func getDummyHubs() (result []models.Hub) {
 			Id:             "offline-" + strconv.Itoa(i),
 			Name:           "offline-" + strconv.Itoa(i),
 			Hash:           "",
-			OwnerId:        "testowner",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,
 		})
@@ -554,7 +505,6 @@ func getDummyHubs() (result []models.Hub) {
 		result = append(result, models.Hub{
 			Id:             "unhandled-" + strconv.Itoa(i),
 			Name:           "unhandled-" + strconv.Itoa(i),
-			OwnerId:        "testowner",
 			Hash:           "",
 			DeviceIds:      devices,
 			DeviceLocalIds: localDeviceIds,
@@ -564,46 +514,23 @@ func getDummyHubs() (result []models.Hub) {
 }
 
 func createDummySenergylikeDeviceTypes(config configuration.Config) error {
-	writer := kafka.Writer{
-		Addr:        kafka.TCP(config.KafkaUrl),
-		Topic:       "device-types",
-		MaxAttempts: 10,
-		BatchSize:   1,
-		Balancer:    &kafka.Hash{},
-	}
-	defer writer.Close()
+	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	for i := 0; i < 2; i++ {
 		indexstr := strconv.Itoa(i)
 		id := "urn:infai:ses:device-type:" + indexstr
-		b, err := json.Marshal(map[string]interface{}{
-			"command": "PUT",
-			"id":      id,
-			"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
-			"device_type": models.DeviceType{
-				Id:   id,
-				Name: indexstr,
-				Services: []models.Service{
-					{
-						Id:          "urn:infai:ses:service:" + indexstr,
-						LocalId:     indexstr,
-						Name:        indexstr,
-						Interaction: models.EVENT_AND_REQUEST,
-						ProtocolId:  "urn:infai:ses:protocol:" + indexstr,
-					},
+		_, err, _ := c.SetDeviceType(client.InternalAdminToken, models.DeviceType{
+			Id:   id,
+			Name: indexstr,
+			Services: []models.Service{
+				{
+					Id:          "urn:infai:ses:service:" + indexstr,
+					LocalId:     indexstr,
+					Name:        indexstr,
+					Interaction: models.EVENT_AND_REQUEST,
+					ProtocolId:  "urn:infai:ses:protocol:" + indexstr,
 				},
 			},
-		})
-		if err != nil {
-			return err
-		}
-		err = writer.WriteMessages(
-			context.Background(),
-			kafka.Message{
-				Key:   []byte(id),
-				Value: b,
-				Time:  time.Now(),
-			},
-		)
+		}, client.DeviceTypeUpdateOptions{})
 		if err != nil {
 			return err
 		}

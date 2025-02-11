@@ -22,7 +22,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"sync"
-	"time"
 )
 
 func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (repoUrl string, kafkaUrl string, err error) {
@@ -44,31 +43,49 @@ func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (re
 		return repoUrl, kafkaUrl, err
 	}
 
-	time.Sleep(1 * time.Second)
-
 	_, mongoIp, err := MongoDB(ctx, wg)
 	if err != nil {
 		return repoUrl, kafkaUrl, err
 	}
+	mongoUrl := "mongodb://" + mongoIp + ":27017"
 
-	_, repoIp, err := DeviceRepo(ctx, wg, kafkaUrl, "mongodb://"+mongoIp+":27017")
+	_, influxip, err := Influxdb(ctx, wg)
+	if err != nil {
+		return repoUrl, kafkaUrl, err
+	}
+	influxUrl := "http://" + influxip + ":8086"
+
+	_, permV2Ip, err := PermissionsV2(ctx, wg, mongoUrl, kafkaUrl)
+	if err != nil {
+		return repoUrl, kafkaUrl, err
+	}
+	permv2Url := "http://" + permV2Ip + ":8080"
+
+	_, repoIp, err := DeviceRepo(ctx, wg, kafkaUrl, mongoUrl, permv2Url)
 	if err != nil {
 		return repoUrl, kafkaUrl, err
 	}
 	repoUrl = "http://" + repoIp + ":8080"
 
+	err = ConnectionLogWorker(ctx, wg, kafkaUrl, mongoUrl, influxUrl, repoUrl)
+	if err != nil {
+		return repoUrl, kafkaUrl, err
+	}
+
 	return repoUrl, kafkaUrl, err
 }
 
-func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoUrl string) (hostPort string, ipAddress string, err error) {
+func DeviceRepo(ctx context.Context, wg *sync.WaitGroup, kafkaUrl string, mongoUrl string, permv2Url string) (hostPort string, ipAddress string, err error) {
 	log.Println("start device-repository")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image: "ghcr.io/senergy-platform/device-repository:prod",
 			Env: map[string]string{
-				"DEBUG":     "true",
-				"KAFKA_URL": kafkaUrl,
-				"MONGO_URL": mongoUrl,
+				"DEBUG":                                 "true",
+				"KAFKA_URL":                             kafkaUrl,
+				"MONGO_URL":                             mongoUrl,
+				"PERMISSIONS_V2_URL":                    permv2Url,
+				"DISABLE_STRICT_VALIDATION_FOR_TESTING": "true",
 			},
 			ExposedPorts:    []string{"8080/tcp"},
 			WaitingFor:      wait.ForListeningPort("8080/tcp"),

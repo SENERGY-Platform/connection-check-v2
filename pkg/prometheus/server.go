@@ -42,7 +42,7 @@ func Start(ctx context.Context, config configuration.Config) (metrics *Metrics, 
 	server := &http.Server{Addr: ":" + config.PrometheusPort, Handler: router}
 	go func() {
 		log.Println("listening on ", server.Addr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			debug.PrintStack()
 			log.Fatal("FATAL:", err)
 		}

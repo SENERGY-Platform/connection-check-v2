@@ -18,7 +18,6 @@ package tests
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
@@ -29,7 +28,6 @@ import (
 	"github.com/SENERGY-Platform/device-repository/lib/client"
 	"github.com/SENERGY-Platform/models/go/models"
 	"github.com/google/uuid"
-	"github.com/segmentio/kafka-go"
 	"reflect"
 	"strconv"
 	"strings"
@@ -58,6 +56,7 @@ func TestMqttDeviceLoop(t *testing.T) {
 		HubProtocolCheckCacheExpiration:    "1h",
 		DeviceCheckTopicHintExpiration:     "1h",
 		UseDeviceCheckTopicHintExclusively: true,
+		MaxErrorCountTilFatal:              -1,
 	}
 
 	var err error
@@ -79,8 +78,6 @@ func TestMqttDeviceLoop(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
-	time.Sleep(10 * time.Second)
 
 	metrics, err := prometheus.Start(ctx, config)
 	if err != nil {
@@ -148,9 +145,9 @@ func TestMqttDeviceLoop(t *testing.T) {
 		t.Errorf("%#v", senergyLikeDevices)
 		return
 	}
-	for _, device := range senergyLikeDevices {
+	for i, device := range senergyLikeDevices {
 		if !reflect.DeepEqual(device.ConnectionState, models.ConnectionStateOnline) {
-			t.Errorf("%#v", device)
+			t.Errorf("%v %#v", i, device)
 			return
 		}
 	}
@@ -195,6 +192,7 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 		HubProtocolCheckCacheExpiration:    "1h",
 		DeviceCheckTopicHintExpiration:     "1h",
 		UseDeviceCheckTopicHintExclusively: true,
+		MaxErrorCountTilFatal:              -1,
 	}
 
 	var err error
@@ -244,41 +242,19 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 }
 
 func createDummyMqttDevices(config configuration.Config) error {
-	writer := kafka.Writer{
-		Addr:        kafka.TCP(config.KafkaUrl),
-		Topic:       "devices",
-		MaxAttempts: 10,
-		BatchSize:   1,
-		Balancer:    &kafka.Hash{},
-	}
-	defer writer.Close()
+	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 200; j++ {
 			devicetypeindex := strconv.Itoa(i)
 			deviceindex := devicetypeindex + "-" + strconv.Itoa(j)
 			id := "urn:infai:ses:device:" + uuid.NewString()
-			b, err := json.Marshal(map[string]interface{}{
-				"command": "PUT",
-				"id":      id,
-				"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
-				"device": models.Device{
-					Id:           id,
-					LocalId:      "lid-" + deviceindex,
-					Name:         deviceindex,
-					DeviceTypeId: "urn:infai:ses:device-type:" + devicetypeindex,
-				},
-			})
-			if err != nil {
-				return err
-			}
-			err = writer.WriteMessages(
-				context.Background(),
-				kafka.Message{
-					Key:   []byte(id),
-					Value: b,
-					Time:  time.Now(),
-				},
-			)
+			_, err, _ := c.SetDevice(TestToken, models.Device{
+				Id:           id,
+				LocalId:      "lid-" + deviceindex,
+				Name:         deviceindex,
+				DeviceTypeId: "urn:infai:ses:device-type:" + devicetypeindex,
+				//OwnerId:      "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
+			}, client.DeviceUpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -288,46 +264,23 @@ func createDummyMqttDevices(config configuration.Config) error {
 }
 
 func createDummyMqttLikeDeviceTypes(config configuration.Config) error {
-	writer := kafka.Writer{
-		Addr:        kafka.TCP(config.KafkaUrl),
-		Topic:       "device-types",
-		MaxAttempts: 10,
-		BatchSize:   1,
-		Balancer:    &kafka.Hash{},
-	}
-	defer writer.Close()
+	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	for i := 0; i < 2; i++ {
 		indexstr := strconv.Itoa(i)
 		id := "urn:infai:ses:device-type:" + indexstr
-		b, err := json.Marshal(map[string]interface{}{
-			"command": "PUT",
-			"id":      id,
-			"owner":   "dd69ea0d-f553-4336-80f3-7f4567f85c7b",
-			"device_type": models.DeviceType{
-				Id:   id,
-				Name: indexstr,
-				Services: []models.Service{
-					{
-						Id:          "urn:infai:ses:service:" + indexstr,
-						LocalId:     "{{.DeviceId}}/" + indexstr,
-						Name:        indexstr,
-						Interaction: models.EVENT_AND_REQUEST,
-						ProtocolId:  "urn:infai:ses:protocol:" + indexstr,
-					},
+		_, err, _ := c.SetDeviceType(client.InternalAdminToken, models.DeviceType{
+			Id:   id,
+			Name: indexstr,
+			Services: []models.Service{
+				{
+					Id:          "urn:infai:ses:service:" + indexstr,
+					LocalId:     "{{.DeviceId}}/" + indexstr,
+					Name:        indexstr,
+					Interaction: models.EVENT_AND_REQUEST,
+					ProtocolId:  "urn:infai:ses:protocol:" + indexstr,
 				},
 			},
-		})
-		if err != nil {
-			return err
-		}
-		err = writer.WriteMessages(
-			context.Background(),
-			kafka.Message{
-				Key:   []byte(id),
-				Value: b,
-				Time:  time.Now(),
-			},
-		)
+		}, client.DeviceTypeUpdateOptions{})
 		if err != nil {
 			return err
 		}
