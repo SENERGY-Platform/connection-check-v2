@@ -91,6 +91,7 @@ func (this *DeviceProvider) getDevices(offset int64) (result []model.ExtendedDev
 	result, _, err, _ = this.client.ListExtendedDevices(token, client.ExtendedDeviceListOptions{
 		Limit:  int64(this.config.PermissionsRequestDeviceBatchSize),
 		Offset: offset,
+		FullDt: true,
 	})
 	return
 }
