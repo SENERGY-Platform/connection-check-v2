@@ -22,7 +22,7 @@ func TestWorker_checkLastMessages(t *testing.T) {
 		isOnline, available, err := w.checkLastMessages(model.ExtendedDevice{
 			Device: models.Device{
 				Id:         "d1",
-				Attributes: []models.Attribute{{Key: lastMessageAttrKey, Value: "1h"}},
+				Attributes: []models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "1h"}},
 			},
 			DeviceType: &models.DeviceType{Services: []models.Service{
 				{Id: "s1", Interaction: models.EVENT},
@@ -53,7 +53,7 @@ func TestWorker_checkLastMessages(t *testing.T) {
 		t.Run("no services", func(t *testing.T) {
 			_, available, err := w.checkLastMessages(model.ExtendedDevice{
 				Device: models.Device{
-					Attributes: []models.Attribute{{Key: lastMessageAttrKey, Value: "1h"}},
+					Attributes: []models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "1h"}},
 				},
 				DeviceType: &models.DeviceType{},
 			})
@@ -70,7 +70,7 @@ func TestWorker_checkLastMessages(t *testing.T) {
 			_, _, err := w.checkLastMessages(model.ExtendedDevice{
 				Device: models.Device{
 					Id:         "d1",
-					Attributes: []models.Attribute{{Key: lastMessageAttrKey, Value: "test"}},
+					Attributes: []models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "test"}},
 				},
 				DeviceType: &models.DeviceType{},
 			})
@@ -83,7 +83,7 @@ func TestWorker_checkLastMessages(t *testing.T) {
 			_, _, err := w.checkLastMessages(model.ExtendedDevice{
 				Device: models.Device{
 					Id:         "d1",
-					Attributes: []models.Attribute{{Key: lastMessageAttrKey, Value: "1h"}},
+					Attributes: []models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "1h"}},
 				},
 				DeviceType: &models.DeviceType{Services: []models.Service{
 					{Id: "s1", Interaction: models.EVENT},
@@ -100,7 +100,7 @@ func TestWorker_checkLastMessages(t *testing.T) {
 
 func Test_getLastMessageAttr(t *testing.T) {
 	t.Run("in list", func(t *testing.T) {
-		dur, ok, err := getLastMessageAttr([]models.Attribute{{Key: lastMessageAttrKey, Value: "1h"}})
+		dur, ok, err := getLastMessageAttr([]models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "1h"}})
 		if err != nil {
 			t.Error(err)
 		}
@@ -121,7 +121,7 @@ func Test_getLastMessageAttr(t *testing.T) {
 		}
 	})
 	t.Run("error", func(t *testing.T) {
-		_, _, err := getLastMessageAttr([]models.Attribute{{Key: lastMessageAttrKey, Value: "test"}})
+		_, _, err := getLastMessageAttr([]models.Attribute{{Key: lastMessageMaxAgeAttrKey, Value: "test"}})
 		if err == nil {
 			t.Error("expected error")
 		}

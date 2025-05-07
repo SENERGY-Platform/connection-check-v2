@@ -32,7 +32,7 @@ import (
 	"time"
 )
 
-const lastMessageAttrKey = "last_message_duration"
+const lastMessageMaxAgeAttrKey = "last_message_max_age"
 
 type Worker struct {
 	config             configuration.Config
@@ -319,7 +319,7 @@ func getRequestServiceIDs(services []models.Service) []string {
 
 func getLastMessageAttr(attributes []models.Attribute) (time.Duration, bool, error) {
 	for _, attr := range attributes {
-		if attr.Key == lastMessageAttrKey {
+		if attr.Key == lastMessageMaxAgeAttrKey {
 			dur, err := time.ParseDuration(attr.Value)
 			if err != nil {
 				return 0, false, err
