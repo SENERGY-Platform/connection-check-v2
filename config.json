@@ -22,5 +22,8 @@
     "device_check_topic_hint_expiration": "1h",
     "use_device_check_topic_hint_exclusively": true,
     "export_total_connected": true,
-    "max_error_count_til_fatal": 10
+    "max_error_count_til_fatal": 10,
+    "http_request_timeout": "30s",
+    "last_message_db_url": "",
+    "use_utc": true
 }
