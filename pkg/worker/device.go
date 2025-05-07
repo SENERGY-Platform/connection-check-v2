@@ -32,6 +32,8 @@ import (
 	"time"
 )
 
+const lastMessageAttrKey = "last_message_duration"
+
 type Worker struct {
 	config             configuration.Config
 	logger             ConnectionLogger
@@ -252,4 +254,27 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) 
 	} else {
 		return this.logger.LogDeviceDisconnect(reloaded)
 	}
+}
+
+func getRequestServiceIDs(services []models.Service) []string {
+	var ids []string
+	for _, service := range services {
+		if service.Interaction == models.EVENT || service.Interaction == models.EVENT_AND_REQUEST {
+			ids = append(ids, service.Id)
+		}
+	}
+	return ids
+}
+
+func getLastMessageAttr(attributes []models.Attribute) (time.Duration, bool, error) {
+	for _, attr := range attributes {
+		if attr.Key == lastMessageAttrKey {
+			dur, err := time.ParseDuration(attr.Value)
+			if err != nil {
+				return 0, false, err
+			}
+			return dur, true, nil
+		}
+	}
+	return 0, false, nil
 }
