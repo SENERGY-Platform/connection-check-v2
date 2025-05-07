@@ -89,6 +89,8 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 		return err
 	}
 
+	lmProvider.RunCacheCleaner(ctx, wg)
+
 	return nil
 }
 
