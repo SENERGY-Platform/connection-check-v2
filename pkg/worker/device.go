@@ -191,16 +191,26 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
-	if errors.Is(err, common.NoSubscriptionExpected) {
+	lmOnline, lmAvailable, lmCheckErr := this.checkLastMessages(device)
+	subOnline, subAvailable, subCheckErr := this.checkTopicsWrapper(device)
+	switch {
+	case lmCheckErr != nil && subCheckErr != nil:
+		return resets, errors.Join(lmCheckErr, subCheckErr)
+	case lmCheckErr != nil && !subAvailable:
+		return resets, lmCheckErr
+	case subCheckErr != nil && !lmAvailable:
+		return resets, subCheckErr
+	}
+	var isOnline bool
+	switch {
+	case !lmAvailable && !subAvailable:
 		return resets, nil
-	}
-	if err != nil {
-		return resets, err
-	}
-	isOnline, err := this.checkTopics(device, topics)
-	if err != nil {
-		return resets, err
+	case lmAvailable && subAvailable:
+		isOnline = lmOnline && subOnline
+	case lmAvailable && !subAvailable:
+		isOnline = lmOnline
+	case !lmAvailable && subAvailable:
+		isOnline = subOnline
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	expected := device.ConnectionState == models.ConnectionStateOnline
