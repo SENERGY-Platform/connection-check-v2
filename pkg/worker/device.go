@@ -38,6 +38,7 @@ type Worker struct {
 	deviceprovider     DeviceProvider
 	hubprovider        HubProvider
 	deviceTypeProvider DeviceTypeProvider
+	lmProvider         LastMessageProvider
 	verne              Verne
 	topic              common.TopicGenerator
 	hintstore          *cache.Cache
@@ -45,7 +46,7 @@ type Worker struct {
 	minimalRecheckWait time.Duration
 }
 
-func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, verne Verne, metrics *prometheus.Metrics) (*Worker, error) {
+func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, lmProvider LastMessageProvider, verne Verne, metrics *prometheus.Metrics) (*Worker, error) {
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
@@ -65,6 +66,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		deviceprovider:     deviceprovider,
 		hubprovider:        hubprovider,
 		deviceTypeProvider: deviceTypeProvider,
+		lmProvider:         lmProvider,
 		verne:              verne,
 		topic:              topic,
 		hintstore:          cache.New(deviceCheckTopicHintExpiration, time.Minute),
@@ -97,6 +99,10 @@ type Verne interface {
 
 type DeviceTypeProvider interface {
 	GetDeviceType(deviceTypeId string) (dt models.DeviceType, err error)
+}
+
+type LastMessageProvider interface {
+	CheckLastMessages(deviceID string, serviceIDs []string, maxAge time.Duration) (bool, error)
 }
 
 func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error {

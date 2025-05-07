@@ -111,7 +111,13 @@ func TestMqttDeviceLoop(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, mock, metrics)
+	lmClient, err := providers.NewLastMessageClient(config, mock)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	lmProvider := providers.NewLastMessageStateProvider(lmClient, false)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, mock, metrics)
 	if err != nil {
 		t.Error(err)
 		return
