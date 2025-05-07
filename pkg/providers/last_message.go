@@ -148,7 +148,7 @@ type resp struct {
 func NewLastMessageClient(config configuration.Config, tokengen TokenGenerator) (*LastMessageClient, error) {
 	timeout, err := time.ParseDuration(config.HttpRequestTimeout)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing http request timeout failed: %v", err)
 	}
 	return &LastMessageClient{
 		tokengen: tokengen,
