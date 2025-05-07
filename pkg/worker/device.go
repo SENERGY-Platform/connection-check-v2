@@ -210,6 +210,47 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	return resets, nil
 }
 
+func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, available bool, err error) {
+	if device.DeviceType == nil {
+		return false, false, nil
+	}
+	maxAge, ok, err := getLastMessageAttr(device.Attributes)
+	if err != nil {
+		log.Printf("ERROR: getting device last message attribute failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		return false, false, err
+	}
+	if !ok {
+		return false, false, nil
+	}
+	serviceIDs := getRequestServiceIDs(device.DeviceType.Services)
+	if len(serviceIDs) == 0 {
+		return false, false, nil
+	}
+	isOnline, err = this.lmProvider.CheckLastMessages(device.Id, serviceIDs, maxAge)
+	if err != nil {
+		log.Printf("ERROR: checking device last messages failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		return false, false, err
+	}
+	return isOnline, true, nil
+}
+
+func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, available bool, err error) {
+	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
+	if err != nil {
+		if errors.Is(err, common.NoSubscriptionExpected) {
+			return false, false, nil
+		}
+		log.Printf("ERROR: getting device topics failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		return false, false, err
+	}
+	isOnline, err = this.checkTopics(device, topics)
+	if err != nil {
+		log.Printf("ERROR: checking device subscriptions failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		return false, false, err
+	}
+	return isOnline, true, nil
+}
+
 func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
 	if this.config.Debug {
 		defer func() {
