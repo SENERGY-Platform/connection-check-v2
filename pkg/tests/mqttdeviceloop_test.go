@@ -57,6 +57,7 @@ func TestMqttDeviceLoop(t *testing.T) {
 		DeviceCheckTopicHintExpiration:     "1h",
 		UseDeviceCheckTopicHintExclusively: true,
 		MaxErrorCountTilFatal:              -1,
+		HttpRequestTimeout:                 "30s",
 	}
 
 	var err error

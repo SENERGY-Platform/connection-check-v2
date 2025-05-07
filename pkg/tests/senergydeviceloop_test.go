@@ -63,6 +63,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		UseDeviceCheckTopicHintExclusively: false,
 		PrometheusPort:                     "8080",
 		MaxErrorCountTilFatal:              -1,
+		HttpRequestTimeout:                 "30s",
 	}
 
 	var err error
