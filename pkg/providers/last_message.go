@@ -63,7 +63,7 @@ func (p *LastMessageStateProvider) CheckLastMessages(deviceID string, serviceIDs
 				return
 			}
 			mu.Lock()
-			timestamps = append(timestamps, timestamp)
+			timestamps = append(timestamps, p.getTime(timestamp))
 			mu.Unlock()
 		}(deviceID, serviceID)
 	}
@@ -133,6 +133,13 @@ func (p *LastMessageStateProvider) timeNow() time.Time {
 		return time.Now().UTC()
 	}
 	return time.Now()
+}
+
+func (p *LastMessageStateProvider) getTime(t time.Time) time.Time {
+	if p.utcTime {
+		return t.UTC()
+	}
+	return t
 }
 
 type LastMessageClient struct {
