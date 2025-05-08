@@ -3,7 +3,6 @@ package providers
 import (
 	"errors"
 	"fmt"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"reflect"
 	"testing"
 	"time"
@@ -70,7 +69,7 @@ func TestLastMessageStateProvider_CheckLastMessages(t *testing.T) {
 		}
 	})
 	t.Run("error", func(t *testing.T) {
-		_, err := p.CheckLastMessages("d2", []string{"s1", "s2"}, time.Hour)
+		_, err := p.CheckLastMessages("d2", []string{"s2"}, time.Hour)
 		if err == nil {
 			t.Error("expected error")
 		}
@@ -107,6 +106,11 @@ func (m *lastMessageClientMock) GetLastMessageTime(deviceID, serviceID string) (
 }
 
 func TestName(t *testing.T) {
-	tSubOK := !errors.Is(nil, common.NoSubscriptionExpected)
-	fmt.Println(tSubOK)
+	timestamp, err := time.Parse(time.RFC3339, "2025-05-08T08:17:23.02Z")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(timestamp)
+	fmt.Println(timestamp.UTC())
+	fmt.Println(timestamp.After(time.Now().UTC().Add(-time.Hour)))
 }
