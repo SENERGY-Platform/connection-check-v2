@@ -191,8 +191,14 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
+	var isOnline bool
 	lmOnline, lmAvailable, lmCheckErr := this.checkLastMessages(device)
 	subOnline, subAvailable, subCheckErr := this.checkTopicsWrapper(device)
+	if this.config.Debug {
+		defer func() {
+			log.Printf("DEBUG: check device connection state id=%v owner=%v local-id=%v result=%v lm-available=%v sub-available=%v lm-result=%v sub-result=%v lm-err=%v sub-err=%v", device.Id, device.OwnerId, device.LocalId, isOnline, lmAvailable, subAvailable, lmOnline, subOnline, lmCheckErr, subCheckErr)
+		}()
+	}
 	switch {
 	case lmCheckErr != nil && subCheckErr != nil:
 		return resets, errors.Join(lmCheckErr, subCheckErr)
@@ -201,7 +207,6 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	case subCheckErr != nil && !lmAvailable:
 		return resets, subCheckErr
 	}
-	var isOnline bool
 	switch {
 	case !lmAvailable && !subAvailable:
 		return resets, nil
@@ -221,11 +226,6 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 }
 
 func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, available bool, err error) {
-	if this.config.Debug {
-		defer func() {
-			log.Printf("DEBUG: check last messages id=%v owner=%v local-id=%v result=%v available=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, isOnline, available, err)
-		}()
-	}
 	if device.DeviceType == nil {
 		return false, false, nil
 	}
@@ -250,11 +250,6 @@ func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, av
 }
 
 func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, available bool, err error) {
-	if this.config.Debug {
-		defer func() {
-			log.Printf("DEBUG: check subscriptions id=%v owner=%v local-id=%v result=%v available=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, isOnline, available, err)
-		}()
-	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
 	if err != nil {
 		if errors.Is(err, common.NoSubscriptionExpected) {
