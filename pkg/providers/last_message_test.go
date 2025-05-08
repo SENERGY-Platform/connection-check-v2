@@ -2,7 +2,6 @@ package providers
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -103,14 +102,4 @@ func (m *lastMessageClientMock) GetLastMessageTime(deviceID, serviceID string) (
 		return time.Time{}, errors.New("not found")
 	}
 	return timestamp, nil
-}
-
-func TestName(t *testing.T) {
-	timestamp, err := time.Parse(time.RFC3339, "2025-05-08T08:17:23.02Z")
-	if err != nil {
-		t.Error(err)
-	}
-	fmt.Println(timestamp)
-	fmt.Println(timestamp.UTC())
-	fmt.Println(timestamp.After(time.Now().UTC().Add(-time.Hour)))
 }
