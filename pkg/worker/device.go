@@ -223,7 +223,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, available bool, err error) {
 	if this.config.Debug {
 		defer func() {
-			log.Printf("DEBUG: check last messages id=%v owner=%v local-id=%v result=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, isOnline, err)
+			log.Printf("DEBUG: check last messages id=%v owner=%v local-id=%v result=%v available=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, isOnline, available, err)
 		}()
 	}
 	if device.DeviceType == nil {
@@ -250,6 +250,11 @@ func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, av
 }
 
 func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, available bool, err error) {
+	if this.config.Debug {
+		defer func() {
+			log.Printf("DEBUG: check subscriptions id=%v owner=%v local-id=%v result=%v available=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, isOnline, available, err)
+		}()
+	}
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
 	if err != nil {
 		if errors.Is(err, common.NoSubscriptionExpected) {
@@ -267,11 +272,6 @@ func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, a
 }
 
 func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
-	if this.config.Debug {
-		defer func() {
-			log.Printf("DEBUG: check subscriptions id=%v owner=%v local-id=%v result=%v err=%v\n", device.Id, device.OwnerId, device.LocalId, onlineSubscriptionExists, err)
-		}()
-	}
 	hintTopic, useHint := this.getHint(device)
 	if useHint {
 		onlineSubscriptionExists, err = this.verne.CheckTopic(hintTopic)
