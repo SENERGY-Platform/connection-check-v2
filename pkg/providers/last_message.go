@@ -171,7 +171,7 @@ func (c *LastMessageClient) GetLastMessageTime(deviceID, serviceID string) (time
 	if err != nil {
 		return time.Time{}, err
 	}
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", token)
 	body, err := c.execRequest(req)
 	if err != nil {
 		return time.Time{}, err
