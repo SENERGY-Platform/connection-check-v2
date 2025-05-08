@@ -68,7 +68,7 @@ func (p *LastMessageStateProvider) CheckLastMessages(deviceID string, serviceIDs
 		}(deviceID, serviceID)
 	}
 	wg.Wait()
-	if len(errs) > 0 {
+	if len(errs) == len(serviceIDs) {
 		return false, errors.Join(errs...)
 	}
 	var lastMsgTime time.Time
