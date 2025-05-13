@@ -27,12 +27,12 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config,
 	router := http.NewServeMux()
 	for _, route := range routes {
 		method, path, handlerFunc := route(config, worker)
-		log.Println("add route ", method, path)
+		log.Println("add route", method, path)
 		router.HandleFunc(fmt.Sprintf("%s %s", method, path), handlerFunc)
 	}
 	server := &http.Server{Addr: ":" + config.ServerPort, Handler: router}
 	go func() {
-		log.Println("listening on ", server.Addr)
+		log.Println("listening on", server.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			debug.PrintStack()
 			log.Fatal("FATAL:", err)
