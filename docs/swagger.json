@@ -1,0 +1,151 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Checks and updates connection states.",
+        "title": "connection check v2",
+        "contact": {},
+        "license": {
+            "name": "Apache-2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "0.0.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/states/refresh/devices": {
+            "post": {
+                "description": "Refresh the states of multiple devices.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "States"
+                ],
+                "summary": "Refresh devices states",
+                "parameters": [
+                    {
+                        "description": "list of devices",
+                        "name": "devices",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.StatesRefreshRequestItem"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "207": {
+                        "description": "list of error messages mapped to device IDs",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.StatesRefreshResponseErrItem"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "list of error messages mapped to device IDs",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.StatesRefreshResponseErrItem"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/states/refresh/devices/{id}": {
+            "patch": {
+                "description": "Refresh the state of a device.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "States"
+                ],
+                "summary": "Refresh device state",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "result of last message check by caller",
+                        "name": "lm_result",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "result of subscription check by caller",
+                        "name": "sub_result",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "error message",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "model.StatesRefreshRequestItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "lm_result": {
+                    "type": "integer"
+                },
+                "sub_result": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatesRefreshResponseErrItem": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
