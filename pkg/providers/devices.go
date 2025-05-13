@@ -76,7 +76,7 @@ func (this *DeviceProvider) GetDevice(id string) (result model.ExtendedDevice, e
 	if err != nil {
 		return result, err
 	}
-	result, err, _ = this.client.ReadExtendedDevice(id, token, clientmodel.READ, false)
+	result, err, _ = this.client.ReadExtendedDevice(id, token, clientmodel.READ, true)
 	return result, err
 }
 
