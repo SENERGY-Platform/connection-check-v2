@@ -93,6 +93,7 @@ func PatchStatesRefreshDevice(_ configuration.Config, worker Worker) (method, pa
 
 func Swagger(_ configuration.Config, _ Worker) (method, path string, handlerFunc http.HandlerFunc) {
 	return http.MethodGet, "/doc", func(w http.ResponseWriter, r *http.Request) {
+		defer recoverFromPanic(w)
 		file, err := os.Open("docs/swagger.json")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
