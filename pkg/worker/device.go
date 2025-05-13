@@ -154,9 +154,9 @@ func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) e
 	isOnline, err := this.getDeviceState(device, lmResult, subResult)
 	if err != nil {
 		if errors.Is(err, noStateChecksErr) {
-			log.Printf("WARNING: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
 			return nil
 		}
+		log.Printf("ERROR: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
 		return err
 	}
 	return this.setDeviceState(device, isOnline)
@@ -212,9 +212,9 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	isOnline, err := this.getDeviceState(device, 0, 0)
 	if err != nil {
 		if errors.Is(err, noStateChecksErr) {
-			log.Printf("WARNING: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
 			return resets, nil
 		}
+		log.Printf("ERROR: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
 		return resets, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
