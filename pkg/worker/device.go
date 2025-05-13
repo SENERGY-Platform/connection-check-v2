@@ -146,6 +146,22 @@ func (this *Worker) RunDeviceLoop(ctx context.Context, wg *sync.WaitGroup) error
 	return nil
 }
 
+func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) error {
+	device, err := this.deviceprovider.GetDevice(deviceID)
+	if err != nil {
+		return err
+	}
+	isOnline, err := this.getDeviceState(device, lmResult, subResult)
+	if err != nil {
+		if errors.Is(err, noStateChecksErr) {
+			log.Printf("WARNING: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+			return nil
+		}
+		return err
+	}
+	return this.setDeviceState(device, isOnline)
+}
+
 func getErrorHandler(config configuration.Config) func(error) {
 	if config.MaxErrorCountTilFatal >= 0 {
 		return getFatalErrOnRepeatHandler(config.MaxErrorCountTilFatal)
