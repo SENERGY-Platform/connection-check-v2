@@ -18,6 +18,7 @@ package pkg
 
 import (
 	"context"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/api"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/auth"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
@@ -90,6 +91,11 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	}
 
 	lmProvider.RunCacheCleaner(ctx, wg)
+
+	err = api.Start(ctx, wg, config, w)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
