@@ -34,6 +34,8 @@ import (
 
 const lastMessageMaxAgeAttrKey = "last_message_max_age"
 
+var noStateChecksErr = errors.New("no checks available")
+
 type Worker struct {
 	config             configuration.Config
 	logger             ConnectionLogger
@@ -191,9 +193,37 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
+	isOnline, err := this.getDeviceState(device, 0, 0)
+	if err != nil {
+		if errors.Is(err, noStateChecksErr) {
+			log.Printf("WARNING: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+			return resets, nil
+		}
+		return resets, err
+	}
+	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
+	return resets, this.setDeviceState(device, isOnline)
+}
+
+func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline bool) error {
+	expected := device.ConnectionState == models.ConnectionStateOnline
+	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown || model.GetMonitorConnectionState(device) != "" {
+		return this.updateDeviceState(device, isOnline)
+	}
+	return nil
+}
+func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subResult int) (bool, error) {
+	lmOnline, lmAvailable := getExtResult(lmResult)
+	var lmCheckErr error
+	if !lmAvailable {
+		lmOnline, lmAvailable, lmCheckErr = this.checkLastMessages(device)
+	}
+	subOnline, subAvailable := getExtResult(subResult)
+	var subCheckErr error
+	if !subAvailable {
+		subOnline, subAvailable, subCheckErr = this.checkTopicsWrapper(device)
+	}
 	var isOnline bool
-	lmOnline, lmAvailable, lmCheckErr := this.checkLastMessages(device)
-	subOnline, subAvailable, subCheckErr := this.checkTopicsWrapper(device)
 	if this.config.Debug {
 		defer func() {
 			log.Printf("DEBUG: check device connection state id=%v owner=%v local-id=%v result=%v lm-available=%v sub-available=%v lm-result=%v sub-result=%v lm-err=%v sub-err=%v", device.Id, device.OwnerId, device.LocalId, isOnline, lmAvailable, subAvailable, lmOnline, subOnline, lmCheckErr, subCheckErr)
@@ -201,15 +231,15 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	}
 	switch {
 	case lmCheckErr != nil && subCheckErr != nil:
-		return resets, errors.Join(lmCheckErr, subCheckErr)
+		return false, errors.Join(lmCheckErr, subCheckErr)
 	case lmCheckErr != nil && !subAvailable:
-		return resets, lmCheckErr
+		return false, lmCheckErr
 	case subCheckErr != nil && !lmAvailable:
-		return resets, subCheckErr
+		return false, subCheckErr
 	}
 	switch {
 	case !lmAvailable && !subAvailable:
-		return resets, nil
+		return false, noStateChecksErr
 	case lmAvailable && subAvailable:
 		isOnline = lmOnline && subOnline
 	case lmAvailable && !subAvailable:
@@ -217,12 +247,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	case !lmAvailable && subAvailable:
 		isOnline = subOnline
 	}
-	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
-	expected := device.ConnectionState == models.ConnectionStateOnline
-	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown || model.GetMonitorConnectionState(device) != "" {
-		return resets, this.updateDeviceState(device, isOnline)
-	}
-	return resets, nil
+	return isOnline, nil
 }
 
 func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, available bool, err error) {
@@ -328,4 +353,14 @@ func getLastMessageAttr(attributes []models.Attribute) (time.Duration, bool, err
 		}
 	}
 	return 0, false, nil
+}
+
+func getExtResult(r int) (isOnline, available bool) {
+	if r > 0 {
+		return true, true
+	}
+	if r < 0 {
+		return false, true
+	}
+	return false, false
 }
