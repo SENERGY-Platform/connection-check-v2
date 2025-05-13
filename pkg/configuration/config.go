@@ -54,6 +54,7 @@ type Config struct {
 	HttpRequestTimeout                 string   `json:"http_request_timeout"`
 	LastMessageDBUrl                   string   `json:"last_message_db_url"`
 	UseUTC                             bool     `json:"use_utc"`
+	ServerPort                         string   `json:"server_port"`
 }
 
 // loads config from json in location and used environment variables (e.g KafkaUrl --> KAFKA_URL)
