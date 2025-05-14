@@ -87,6 +87,7 @@ func (c *Client) RefreshDevicesStates(devices []StatesRefreshRequestItem) error 
 		var errItems []StatesRefreshResponseErrItem
 		err = json.NewDecoder(resp.Body).Decode(&errItems)
 		if err != nil {
+			_, _ = io.ReadAll(resp.Body)
 			return NewMultiStatusError(errors.Join(rErr, err), nil)
 		}
 		return NewMultiStatusError(rErr, errItems)
