@@ -42,15 +42,15 @@ func PostStatesRefreshDevices(_ configuration.Config, worker Worker) (method, pa
 			}
 		}
 		if len(errs) > 0 {
-			if err = json.NewEncoder(w).Encode(errs); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			if len(errs) == len(reqItems) {
 				w.WriteHeader(http.StatusInternalServerError)
 			} else {
 				w.WriteHeader(http.StatusMultiStatus)
+			}
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			if err = json.NewEncoder(w).Encode(errs); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 			return
 		}
