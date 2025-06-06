@@ -55,6 +55,7 @@ type Config struct {
 	LastMessageDBUrl                   string   `json:"last_message_db_url"`
 	UseUTC                             bool     `json:"use_utc"`
 	ServerPort                         string   `json:"server_port"`
+	ApiDocsProviderBaseUrl             string   `json:"api_docs_provider_base_url"`
 }
 
 // loads config from json in location and used environment variables (e.g KafkaUrl --> KAFKA_URL)

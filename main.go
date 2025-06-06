@@ -19,9 +19,12 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/SENERGY-Platform/api-docs-provider/lib/client"
+	"github.com/SENERGY-Platform/connection-check-v2/docs"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -48,6 +51,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if config.ApiDocsProviderBaseUrl != "" && config.ApiDocsProviderBaseUrl != "-" {
+		err = PublishAsyncApiDoc(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	go func() {
 		shutdown := make(chan os.Signal, 1)
 		signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
@@ -58,4 +68,9 @@ func main() {
 
 	<-ctx.Done() //waiting for context end; may happen by shutdown signal
 	wg.Wait()    //give go routines time for cleanup and last messages
+}
+
+func PublishAsyncApiDoc(conf configuration.Config) error {
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	return client.New(http.DefaultClient, conf.ApiDocsProviderBaseUrl).AsyncapiPutDoc(ctx, "github_com_SENERGY-Platform_connection-check-v2", docs.AsyncApiDoc)
 }

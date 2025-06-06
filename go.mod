@@ -1,6 +1,8 @@
 module github.com/SENERGY-Platform/connection-check-v2
 
-go 1.23.0
+go 1.24
+
+toolchain go1.24.4
 
 require (
 	github.com/SENERGY-Platform/device-repository v0.2.5
@@ -19,7 +21,10 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/SENERGY-Platform/api-docs-provider/lib/client v0.0.3 // indirect
+	github.com/SENERGY-Platform/api-docs-provider/lib/models v0.0.3 // indirect
 	github.com/SENERGY-Platform/developer-notifications v0.0.4 // indirect
+	github.com/SENERGY-Platform/go-base-http-client v0.1.0 // indirect
 	github.com/SENERGY-Platform/permissions-v2 v0.0.27 // indirect
 	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20250113112424-b764ba2e1a12 // indirect
 	github.com/SENERGY-Platform/service-commons v0.0.0-20250123095636-6dfc659ee43e // indirect

@@ -1,0 +1,114 @@
+{
+    "asyncapi": "3.0.0",
+    "info": {
+        "title": "Connection Check V2",
+        "version": ""
+    },
+    "servers": {
+        "kafka": {
+            "host": "",
+            "protocol": "kafka"
+        }
+    },
+    "channels": {
+        "device_log": {
+            "address": "device_log",
+            "messages": {
+                "subscribe.message": {
+                    "$ref": "#/components/messages/ConnectionlogDeviceLog"
+                }
+            }
+        },
+        "gateway_log": {
+            "address": "gateway_log",
+            "messages": {
+                "subscribe.message": {
+                    "$ref": "#/components/messages/ConnectionlogHubLog"
+                }
+            }
+        }
+    },
+    "operations": {
+        "device_log.subscribe": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/device_log"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/device_log/messages/subscribe.message"
+                }
+            ]
+        },
+        "gateway_log.subscribe": {
+            "action": "send",
+            "channel": {
+                "$ref": "#/channels/gateway_log"
+            },
+            "messages": [
+                {
+                    "$ref": "#/channels/gateway_log/messages/subscribe.message"
+                }
+            ]
+        }
+    },
+    "components": {
+        "schemas": {
+            "ConnectionlogDeviceLog": {
+                "properties": {
+                    "connected": {
+                        "type": "boolean"
+                    },
+                    "device_name": {
+                        "type": "string"
+                    },
+                    "device_owner": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "monitor_connection_state": {
+                        "type": "string"
+                    },
+                    "time": {
+                        "format": "date-time",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ConnectionlogHubLog": {
+                "properties": {
+                    "connected": {
+                        "type": "boolean"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "time": {
+                        "format": "date-time",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "messages": {
+            "ConnectionlogDeviceLog": {
+                "payload": {
+                    "$ref": "#/components/schemas/ConnectionlogDeviceLog"
+                },
+                "name": "DeviceLog",
+                "title": "DeviceLog"
+            },
+            "ConnectionlogHubLog": {
+                "payload": {
+                    "$ref": "#/components/schemas/ConnectionlogHubLog"
+                },
+                "name": "HubLog",
+                "title": "HubLog"
+            }
+        }
+    }
+}

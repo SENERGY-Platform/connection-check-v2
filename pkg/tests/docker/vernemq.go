@@ -33,7 +33,7 @@ func VernemqttErlio(ctx context.Context, wg *sync.WaitGroup) (brokerUrl string, 
 	ports := []string{"1883/tcp", "8888/tcp"}
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "erlio/docker-vernemq:1.9.1-alpine",
+			Image:        "ghcr.io/senergy-platform/vernemq:prod",
 			Tmpfs:        map[string]string{},
 			ExposedPorts: ports,
 			WaitingFor: wait.ForAll(
