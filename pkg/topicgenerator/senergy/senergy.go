@@ -18,6 +18,7 @@ package senergy
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
@@ -28,26 +29,24 @@ import (
 
 func init() {
 	known.Generators["senergy"] = func(config configuration.Config, deviceTypeProvider common.DeviceTypeProvider, device model.ExtendedDevice) (topicCandidates []string, err error) {
-		topicCandidates = append(topicCandidates,
-			fmt.Sprintf("command/%v/%v/+", device.OwnerId, device.LocalId),
-			fmt.Sprintf("command/%v/+", device.LocalId), //fallback to old topic structure
-		)
 		deviceType, err := deviceTypeProvider.GetDeviceType(device.DeviceTypeId)
 		if err != nil {
 			return []string{}, err
 		}
-		found := false
-		for _, service := range deviceType.Services {
-			if service.Interaction == models.REQUEST || service.Interaction == models.EVENT_AND_REQUEST {
-				topicCandidates = append(topicCandidates, fmt.Sprintf("command/%v/%v/%v", device.OwnerId, device.LocalId, service.LocalId))
-				found = true
-				break
-			}
-		}
-		if !found {
+		if slices.Contains(config.DeviceClassesWithoutExpectedSubscriptions, deviceType.DeviceClassId) {
 			return []string{}, common.NoSubscriptionExpected
 		}
 
+		topicCandidates = append(topicCandidates,
+			fmt.Sprintf("command/%v/%v/+", device.OwnerId, device.LocalId),
+			fmt.Sprintf("command/%v/+", device.LocalId), //fallback to old topic structure
+		)
+		for _, service := range deviceType.Services {
+			if service.Interaction == models.REQUEST || service.Interaction == models.EVENT_AND_REQUEST {
+				topicCandidates = append(topicCandidates, fmt.Sprintf("command/%v/%v/%v", device.OwnerId, device.LocalId, service.LocalId))
+				break
+			}
+		}
 		return topicCandidates, nil
 	}
 }

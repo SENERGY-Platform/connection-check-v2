@@ -27,35 +27,36 @@ import (
 )
 
 type Config struct {
-	PrometheusPort                     string   `json:"prometheus_port"`
-	Debug                              bool     `json:"debug"`
-	TopicGenerator                     string   `json:"topic_generator"`
-	KafkaUrl                           string   `json:"kafka_url"`
-	DeviceRepositoryUrl                string   `json:"device_repository_url"`
-	VerneManagementUrl                 string   `json:"verne_management_url"`
-	HandledProtocols                   []string `json:"handled_protocols"`
-	AuthEndpoint                       string   `json:"auth_endpoint"`
-	AuthClientId                       string   `json:"auth_client_id"`
-	AuthClientSecret                   string   `json:"auth_client_secret"`
-	AuthExpirationTimeBuffer           float64  `json:"auth_expiration_time_buffer"`
-	DeviceTypeCacheExpiration          string   `json:"device_type_cache_expiration"`
-	HubProtocolCheckCacheExpiration    string   `json:"hub_protocol_check_cache_expiration"`
-	PermissionsRequestDeviceBatchSize  int      `json:"permissions_request_device_batch_size"`
-	PermissionsRequestHubBatchSize     int      `json:"permissions_request_hub_batch_size"`
-	MinimalRecheckWaitDuration         string   `json:"minimal_recheck_wait_duration"`
-	DeviceCheckInterval                string   `json:"device_check_interval"`
-	HubCheckInterval                   string   `json:"hub_check_interval"`
-	DeviceConnectionLogTopic           string   `json:"device_connection_log_topic"`
-	HubConnectionLogTopic              string   `json:"hub_connection_log_topic"`
-	DeviceCheckTopicHintExpiration     string   `json:"device_check_topic_hint_expiration"`
-	UseDeviceCheckTopicHintExclusively bool     `json:"use_device_check_topic_hint_exclusively"`
-	ExportTotalConnected               bool     `json:"export_total_connected"`
-	MaxErrorCountTilFatal              int64    `json:"max_error_count_til_fatal"`
-	HttpRequestTimeout                 string   `json:"http_request_timeout"`
-	LastMessageDBUrl                   string   `json:"last_message_db_url"`
-	UseUTC                             bool     `json:"use_utc"`
-	ServerPort                         string   `json:"server_port"`
-	ApiDocsProviderBaseUrl             string   `json:"api_docs_provider_base_url"`
+	PrometheusPort                            string   `json:"prometheus_port"`
+	Debug                                     bool     `json:"debug"`
+	TopicGenerator                            string   `json:"topic_generator"`
+	KafkaUrl                                  string   `json:"kafka_url"`
+	DeviceRepositoryUrl                       string   `json:"device_repository_url"`
+	VerneManagementUrl                        string   `json:"verne_management_url"`
+	HandledProtocols                          []string `json:"handled_protocols"`
+	AuthEndpoint                              string   `json:"auth_endpoint"`
+	AuthClientId                              string   `json:"auth_client_id"`
+	AuthClientSecret                          string   `json:"auth_client_secret"`
+	AuthExpirationTimeBuffer                  float64  `json:"auth_expiration_time_buffer"`
+	DeviceTypeCacheExpiration                 string   `json:"device_type_cache_expiration"`
+	HubProtocolCheckCacheExpiration           string   `json:"hub_protocol_check_cache_expiration"`
+	PermissionsRequestDeviceBatchSize         int      `json:"permissions_request_device_batch_size"`
+	PermissionsRequestHubBatchSize            int      `json:"permissions_request_hub_batch_size"`
+	MinimalRecheckWaitDuration                string   `json:"minimal_recheck_wait_duration"`
+	DeviceCheckInterval                       string   `json:"device_check_interval"`
+	HubCheckInterval                          string   `json:"hub_check_interval"`
+	DeviceConnectionLogTopic                  string   `json:"device_connection_log_topic"`
+	HubConnectionLogTopic                     string   `json:"hub_connection_log_topic"`
+	DeviceCheckTopicHintExpiration            string   `json:"device_check_topic_hint_expiration"`
+	UseDeviceCheckTopicHintExclusively        bool     `json:"use_device_check_topic_hint_exclusively"`
+	ExportTotalConnected                      bool     `json:"export_total_connected"`
+	MaxErrorCountTilFatal                     int64    `json:"max_error_count_til_fatal"`
+	HttpRequestTimeout                        string   `json:"http_request_timeout"`
+	LastMessageDBUrl                          string   `json:"last_message_db_url"`
+	UseUTC                                    bool     `json:"use_utc"`
+	ServerPort                                string   `json:"server_port"`
+	ApiDocsProviderBaseUrl                    string   `json:"api_docs_provider_base_url"`
+	DeviceClassesWithoutExpectedSubscriptions []string `json:"device_classes_without_expected_subscriptions"`
 }
 
 // loads config from json in location and used environment variables (e.g KafkaUrl --> KAFKA_URL)
