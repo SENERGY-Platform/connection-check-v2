@@ -18,10 +18,11 @@ package docker
 
 import (
 	"context"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"sync"
+
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (repoUrl string, kafkaUrl string, err error) {
@@ -32,13 +33,7 @@ func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (re
 		}
 	}()
 
-	_, zkIp, err := Zookeeper(ctx, wg)
-	if err != nil {
-		return repoUrl, kafkaUrl, err
-	}
-	zookeeperUrl := zkIp + ":2181"
-
-	kafkaUrl, err = Kafka(ctx, wg, zookeeperUrl)
+	kafkaUrl, err = Kafka(ctx, wg)
 	if err != nil {
 		return repoUrl, kafkaUrl, err
 	}

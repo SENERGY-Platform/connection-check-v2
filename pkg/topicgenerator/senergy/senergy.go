@@ -38,8 +38,8 @@ func init() {
 		}
 		found := false
 		for _, service := range deviceType.Services {
-			topicCandidates = append(topicCandidates, fmt.Sprintf("command/%v/%v/%v", device.OwnerId, device.LocalId, service.LocalId))
 			if service.Interaction == models.REQUEST || service.Interaction == models.EVENT_AND_REQUEST {
+				topicCandidates = append(topicCandidates, fmt.Sprintf("command/%v/%v/%v", device.OwnerId, device.LocalId, service.LocalId))
 				found = true
 				break
 			}
