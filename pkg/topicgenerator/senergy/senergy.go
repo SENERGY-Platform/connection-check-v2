@@ -18,10 +18,12 @@ package senergy
 
 import (
 	"fmt"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/known"
+	"github.com/SENERGY-Platform/models/go/models"
 )
 
 func init() {
@@ -30,6 +32,22 @@ func init() {
 			fmt.Sprintf("command/%v/%v/+", device.OwnerId, device.LocalId),
 			fmt.Sprintf("command/%v/+", device.LocalId), //fallback to old topic structure
 		)
+		deviceType, err := deviceTypeProvider.GetDeviceType(device.DeviceTypeId)
+		if err != nil {
+			return []string{}, err
+		}
+		found := false
+		for _, service := range deviceType.Services {
+			topicCandidates = append(topicCandidates, fmt.Sprintf("command/%v/%v/%v", device.OwnerId, device.LocalId, service.LocalId))
+			if service.Interaction == models.REQUEST || service.Interaction == models.EVENT_AND_REQUEST {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return []string{}, common.NoSubscriptionExpected
+		}
+
 		return topicCandidates, nil
 	}
 }
