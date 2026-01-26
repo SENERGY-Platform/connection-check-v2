@@ -3,14 +3,15 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 )
 
 // PostStatesRefreshDevices godoc
@@ -25,7 +26,7 @@ import (
 // @Failure 400 {string} string "error message"
 // @Failure	500 {array} model.StatesRefreshResponseErrItem "list of error messages mapped to device IDs"
 // @Router /states/refresh/devices [post]
-func PostStatesRefreshDevices(_ configuration.Config, worker Worker) (method, path string, handlerFunc http.HandlerFunc) {
+func PostStatesRefreshDevices(config configuration.Config, worker Worker) (method, path string, handlerFunc http.HandlerFunc) {
 	return http.MethodPost, "/states/refresh/devices", func(w http.ResponseWriter, r *http.Request) {
 		defer recoverFromPanic(w)
 		var reqItems []model.StatesRefreshRequestItem
@@ -37,7 +38,7 @@ func PostStatesRefreshDevices(_ configuration.Config, worker Worker) (method, pa
 		var errs []model.StatesRefreshResponseErrItem
 		for _, reqItem := range reqItems {
 			if err = worker.CheckDeviceState(reqItem.ID, reqItem.LMResult, reqItem.SubResult); err != nil {
-				log.Println("ERROR: device state refresh failed:", err)
+				config.GetLogger().Error("device state refresh failed", "error", err)
 				errs = append(errs, model.StatesRefreshResponseErrItem{ID: reqItem.ID, Error: err.Error()})
 			}
 		}
@@ -111,7 +112,7 @@ func Swagger(_ configuration.Config, _ Worker) (method, path string, handlerFunc
 func recoverFromPanic(writer http.ResponseWriter) {
 	if r := recover(); r != nil {
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		log.Printf("recovered from panic:\n%v", r)
+		slog.Default().Error("recovered from panic", "error", r)
 	}
 }
 

@@ -17,13 +17,13 @@
 package providers
 
 import (
+	"strings"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/device-repository/lib/client"
 	clientmodel "github.com/SENERGY-Platform/device-repository/lib/model"
 	"github.com/SENERGY-Platform/models/go/models"
-	"log"
-	"strings"
 )
 
 func NewDeviceProvider(config configuration.Config, tokengen TokenGenerator, devicetypes DeviceTypeProviderInterface) (result *DeviceProvider, err error) {
@@ -65,7 +65,7 @@ func (this *DeviceProvider) GetNextDevice() (device model.ExtendedDevice, resets
 func (this *DeviceProvider) deviceMatchesProtocol(device model.ExtendedDevice) (bool, error) {
 	dt, err := this.devicetypes.GetDeviceType(device.DeviceTypeId)
 	if err != nil {
-		log.Printf("ERROR: skip device %v %v because %v", device.Id, device.Name, err)
+		this.config.GetLogger().Error("skip device", "deviceId", device.Id, "deviceName", device.Name, "error", err)
 		return false, nil
 	}
 	return DeviceTypeUsesHandledProtocol(dt, this.handledProtocols), nil
@@ -81,9 +81,7 @@ func (this *DeviceProvider) GetDevice(id string) (result model.ExtendedDevice, e
 }
 
 func (this *DeviceProvider) getDevices(offset int64) (result []model.ExtendedDevice, err error) {
-	if this.config.Debug {
-		log.Println("load batch", offset)
-	}
+	this.config.GetLogger().Debug("load devices batch", "offset", offset)
 	token, err := this.tokengen.Access()
 	if err != nil {
 		return nil, err

@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"log"
 	"net/http"
 	"runtime/debug"
 	"sync"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 )
 
 type Worker interface {
@@ -23,25 +24,26 @@ type Worker interface {
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 // @BasePath /
 func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config, worker Worker) (err error) {
-	log.Println("start api")
+	config.GetLogger().Info("start api")
 	router := http.NewServeMux()
 	for _, route := range routes {
 		method, path, handlerFunc := route(config, worker)
-		log.Println("add route", method, path)
+		config.GetLogger().Info("add api route", "method", method, "path", path)
 		router.HandleFunc(fmt.Sprintf("%s %s", method, path), handlerFunc)
 	}
 	server := &http.Server{Addr: ":" + config.ServerPort, Handler: router}
 	go func() {
-		log.Println("listening on", server.Addr)
+		config.GetLogger().Info("listening", "address", server.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			debug.PrintStack()
+			config.GetLogger().Error("FATAL ERROR", "error", err)
 			log.Fatal("FATAL:", err)
 		}
 	}()
 	wg.Add(1)
 	go func() {
 		<-ctx.Done()
-		log.Println("api shutdown", server.Shutdown(context.Background()))
+		config.GetLogger().Info("shutdown api", "result", server.Shutdown(context.Background()))
 		wg.Done()
 	}()
 	return

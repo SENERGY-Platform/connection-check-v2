@@ -18,10 +18,11 @@ package auth
 
 import (
 	"encoding/json"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 )
 
 func New(config configuration.Config) *Security {
@@ -47,7 +48,7 @@ func (this *Security) ResetAccess() {
 	this.mux.Lock()
 	defer this.mux.Unlock()
 	b, _ := json.Marshal(this.openid)
-	log.Println("reset OpenidToken: ", string(b))
+	slog.Default().Debug("reset OpenidToken", "token", string(b))
 	this.openid = nil
 }
 
@@ -65,10 +66,10 @@ func (this *Security) Access() (token string, err error) {
 	}
 
 	if this.openid.RefreshToken != "" && this.openid.RefreshExpiresIn > duration+this.authExpirationTimeBuffer {
-		log.Println("refresh token", this.openid.RefreshExpiresIn, duration)
+		slog.Default().Debug("refresh token", "duration", duration, "refresh_expires_in", this.openid.RefreshExpiresIn)
 		openid, err := RefreshOpenidToken(this.authEndpoint, this.authClientId, this.authClientSecret, *this.openid)
 		if err != nil {
-			log.Println("WARNING: unable to use refreshtoken", err)
+			slog.Default().Warn("unable to use refreshtoken", "error", err)
 		} else {
 			this.openid = &openid
 			token = "Bearer " + this.openid.AccessToken
@@ -76,11 +77,11 @@ func (this *Security) Access() (token string, err error) {
 		}
 	}
 
-	log.Println("get new access token")
+	slog.Default().Debug("get new access token")
 	openid, err := GetOpenidToken(this.authEndpoint, this.authClientId, this.authClientSecret)
 	this.openid = &openid
 	if err != nil {
-		log.Println("ERROR: unable to get new access token", err)
+		slog.Default().Error("unable to get new access token", "error", err)
 		this.openid = &OpenidToken{}
 	}
 	token = "Bearer " + this.openid.AccessToken

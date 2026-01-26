@@ -19,16 +19,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
-	"github.com/SENERGY-Platform/device-repository/lib/client"
-	"github.com/SENERGY-Platform/models/go/models"
-	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
 	"net/http"
@@ -39,6 +29,17 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
+	"github.com/SENERGY-Platform/device-repository/lib/client"
+	"github.com/SENERGY-Platform/models/go/models"
+	"github.com/segmentio/kafka-go"
 )
 
 func TestSenergyDeviceLoop(t *testing.T) {

@@ -17,13 +17,13 @@
 package providers
 
 import (
+	"strings"
+	"time"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	devicerepo "github.com/SENERGY-Platform/device-repository/lib/client"
 	devicemodel "github.com/SENERGY-Platform/device-repository/lib/model"
-	"log"
-	"strings"
-	"time"
 )
 
 func NewHubProvider(config configuration.Config, tokengen TokenGenerator, devicetypes DeviceTypeProviderInterface) (result *HubProvider, err error) {
@@ -73,7 +73,7 @@ func (this *HubProvider) HubMatchesProtocol(hub model.ExtendedHub) (result bool,
 	err = this.cache.Use("hubmatchesprotocols."+hub.Id, func() (interface{}, error) {
 		token, err := this.tokengen.Access()
 		if err != nil {
-			log.Println("ERROR:", err)
+			this.config.GetLogger().Error("hubMatchesProtocol: unable to get access token", "error", err)
 			return nil, err
 		}
 
@@ -83,13 +83,13 @@ func (this *HubProvider) HubMatchesProtocol(hub model.ExtendedHub) (result bool,
 
 		device, err, _ := this.devicerepo.ReadDevice(hub.DeviceIds[0], token, devicemodel.READ)
 		if err != nil {
-			log.Println("ERROR:", err)
+			this.config.GetLogger().Error("hubMatchesProtocol: unable to read device", "error", err)
 			return nil, err
 		}
 
 		dt, err := this.devicetypes.GetDeviceType(device.DeviceTypeId)
 		if err != nil {
-			log.Println("ERROR:", err)
+			this.config.GetLogger().Error("hubMatchesProtocol: unable to get device type", "error", err)
 			return nil, err
 		}
 
@@ -99,9 +99,7 @@ func (this *HubProvider) HubMatchesProtocol(hub model.ExtendedHub) (result bool,
 }
 
 func (this *HubProvider) getHubs(offset int64) (result []model.ExtendedHub, err error) {
-	if this.config.Debug {
-		log.Println("load hub batch", this.config.PermissionsRequestHubBatchSize)
-	}
+	this.config.GetLogger().Debug("load hub batch", "offset", offset, "batchSize", this.config.PermissionsRequestHubBatchSize)
 	token, err := this.tokengen.Access()
 	if err != nil {
 		return nil, err

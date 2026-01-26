@@ -20,10 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"log"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 )
 
 func Start(ctx context.Context, config configuration.Config) (metrics *Metrics, err error) {
@@ -41,15 +42,16 @@ func Start(ctx context.Context, config configuration.Config) (metrics *Metrics, 
 
 	server := &http.Server{Addr: ":" + config.PrometheusPort, Handler: router}
 	go func() {
-		log.Println("listening on ", server.Addr)
+		config.GetLogger().Info("listening", "address", server.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			debug.PrintStack()
+			config.GetLogger().Error("FATAL ERROR", "error", err)
 			log.Fatal("FATAL:", err)
 		}
 	}()
 	go func() {
 		<-ctx.Done()
-		log.Println("api shutdown", server.Shutdown(context.Background()))
+		config.GetLogger().Info("shutdown prometheus server", "result", server.Shutdown(context.Background()))
 	}()
 	return
 }

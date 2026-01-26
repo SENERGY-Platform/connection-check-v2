@@ -19,14 +19,14 @@ package vernemq
 import (
 	"encoding/json"
 	"errors"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"runtime/debug"
 	"time"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 )
 
 func New(config configuration.Config, metrics *prometheus.Metrics) *Vernemq {
@@ -42,7 +42,7 @@ type Vernemq struct {
 func (this *Vernemq) CheckTopic(topic string) (result bool, err error) {
 	if this.config.Debug {
 		defer func() {
-			log.Println("DEBUG: check topic", topic, result, err)
+			this.config.GetLogger().Debug("check topic", "topic", topic, "result", result, "error", err)
 		}()
 	}
 	this.metrics.TopicsChecked.Inc()
@@ -63,13 +63,13 @@ func (this *Vernemq) CheckTopic(topic string) (result bool, err error) {
 	if resp.StatusCode >= 300 {
 		buf, _ := io.ReadAll(resp.Body)
 		err = errors.New(resp.Status + ":" + string(buf))
-		log.Println("ERROR: unable to get result from vernemq for device connection check", err)
+		this.config.GetLogger().Error("unable to get result from vernemq for device connection check", "topic", topic, "error", err)
 		return false, err
 	}
 	temp := SubscriptionWrapper{}
 	err = json.NewDecoder(resp.Body).Decode(&temp)
 	if err != nil {
-		log.Println("ERROR: unable to unmarshal result of device connection check")
+		this.config.GetLogger().Error("unable to unmarshal result of device connection check", "topic", topic, "error", err)
 		return false, err
 	}
 	return len(temp.Table) > 0, nil
@@ -105,13 +105,13 @@ func (this *Vernemq) CheckClient(clientId string) (onlineClientExists bool, err 
 	if resp.StatusCode >= 300 {
 		buf, _ := io.ReadAll(resp.Body)
 		err = errors.New(resp.Status + ":" + string(buf))
-		log.Println("ERROR: unable to get result from vernemq", err)
+		this.config.GetLogger().Error("unable to get result from vernemq", "clientId", clientId, "error", err)
 		return false, err
 	}
 	temp := SubscriptionWrapper{}
 	err = json.NewDecoder(resp.Body).Decode(&temp)
 	if err != nil {
-		log.Println("ERROR: unable to unmarshal result of", this.apiUrl+path)
+		this.config.GetLogger().Error("unable to unmarshal result of device connection check", "clientId", clientId, "error", err, "requestUrl", this.apiUrl+path)
 		return false, err
 	}
 	return len(temp.Table) > 0, nil

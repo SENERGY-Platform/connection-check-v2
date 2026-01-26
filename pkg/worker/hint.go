@@ -19,7 +19,6 @@ package worker
 import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/patrickmn/go-cache"
-	"log"
 )
 
 func (this *Worker) getHint(device model.ExtendedDevice) (hint string, used bool) {
@@ -28,7 +27,7 @@ func (this *Worker) getHint(device model.ExtendedDevice) (hint string, used bool
 	if used {
 		hint, used = temp.(string)
 		if !used {
-			log.Printf("ERROR: unable to interpret stored topic hint as string: %v %#v\n", device.Id, temp)
+			this.config.GetLogger().Error("unable to interpret stored topic hint as string", "deviceId", device.Id, "hint", temp)
 		}
 	}
 	return

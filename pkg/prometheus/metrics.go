@@ -17,10 +17,12 @@
 package prometheus
 
 import (
+	"log"
+	"log/slog"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"log"
-	"net/http"
 )
 
 type Metrics struct {
@@ -159,6 +161,7 @@ func (this *Metrics) SetOnMetricsServeRequest(f func()) {
 }
 
 func (this *Metrics) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	slog.Default().Info("http request", "method", request.Method, "path", request.URL, "remote-addr", request.RemoteAddr)
 	log.Printf("%v [%v] %v \n", request.RemoteAddr, request.Method, request.URL)
 	if this.onMetricsServeRequest != nil {
 		this.onMetricsServeRequest()

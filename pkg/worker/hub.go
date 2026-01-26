@@ -19,12 +19,12 @@ package worker
 import (
 	"context"
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
 	"github.com/SENERGY-Platform/models/go/models"
-	"log"
-	"sync"
-	"time"
 )
 
 func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
@@ -33,7 +33,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 	}
 	batchLoopStartTime := time.Now()
 	if this.config.TopicGenerator != "senergy" {
-		log.Println("hub connection check is currently only for the senergy connector supported")
+		this.config.GetLogger().Warn("hub connection check is currently only for the senergy connector supported")
 		return nil
 	}
 	dur, err := time.ParseDuration(this.config.HubCheckInterval)
@@ -73,7 +73,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	hub := models.ExtendedHub{}
 	hub, resets, err = this.hubprovider.GetNextHub()
 	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
-		log.Println("no hub to check found")
+		this.config.GetLogger().Error("no hub to check found", "error", err)
 		return resets, nil
 	}
 	if err != nil {
@@ -97,7 +97,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 func (this *Worker) updateHubState(hub model.ExtendedHub, online bool) error {
 	reloaded, err := this.hubprovider.GetHub(hub.Id)
 	if err != nil {
-		log.Println("WARNING: unable to reload hub info", err)
+		this.config.GetLogger().Error("unable to reload hub info", "hubId", hub.Id, "error", err)
 		return err
 	}
 	currentlyOnline := reloaded.ConnectionState == models.ConnectionStateOnline

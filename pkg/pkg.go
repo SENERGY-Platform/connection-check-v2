@@ -18,6 +18,11 @@ package pkg
 
 import (
 	"context"
+	"log/slog"
+	"runtime/debug"
+	"sync"
+	"time"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/api"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/auth"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
@@ -27,10 +32,6 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
 	"github.com/SENERGY-Platform/device-repository/lib/client"
-	"log"
-	"runtime/debug"
-	"sync"
-	"time"
 )
 
 func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) error {
@@ -104,7 +105,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 	return func() {
 		token, err := tokengen.Access()
 		if err != nil {
-			log.Println("ERROR:", err)
+			slog.Default().Error("getOnMetricsServeRequestHandler() unable to get access token", "error", err)
 			debug.PrintStack()
 			return
 		}
@@ -117,7 +118,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 			defer wg.Done()
 			_, connected, err, _ := deviceRepo.ListExtendedDevices(token, client.ExtendedDeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
 			if err != nil {
-				log.Println("ERROR: unable to load total connected device count from permission-search;", err)
+				slog.Default().Error("unable to load total connected device count from permission-search;", "error", err)
 				return
 			}
 			metrics.TotalConnected.Set(float64(connected))
@@ -128,7 +129,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 			defer wg.Done()
 			_, disconnected, err, _ := deviceRepo.ListExtendedDevices(token, client.ExtendedDeviceListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
 			if err != nil {
-				log.Println("ERROR: unable to load total disconnected device count from permission-search;", err)
+				slog.Default().Error("unable to load total disconnected device count from permission-search;", "error", err)
 				return
 			}
 			metrics.TotalDisconnected.Set(float64(disconnected))
@@ -139,7 +140,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 			defer wg.Done()
 			_, connected, err, _ := deviceRepo.ListExtendedHubs(token, client.HubListOptions{Limit: 1, ConnectionState: client.ConnectionStateOnline})
 			if err != nil {
-				log.Println("ERROR: unable to load total connected hub count from permission-search;", err)
+				slog.Default().Error("unable to load total connected hub count from permission-search", "error", err)
 				return
 			}
 			metrics.TotalHubsConnected.Set(float64(connected))
@@ -150,7 +151,7 @@ func getOnMetricsServeRequestHandler(tokengen *auth.Security, deviceRepo client.
 			defer wg.Done()
 			_, disconnected, err, _ := deviceRepo.ListExtendedHubs(token, client.HubListOptions{Limit: 1, ConnectionState: client.ConnectionStateOffline})
 			if err != nil {
-				log.Println("ERROR: unable to load total disconnected hub count from permission-search;", err)
+				slog.Default().Error("unable to load total disconnected hub count from permission-search", "error", err)
 				return
 			}
 			metrics.TotalHubsDisconnected.Set(float64(disconnected))

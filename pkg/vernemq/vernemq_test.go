@@ -18,15 +18,16 @@ package vernemq
 
 import (
 	"context"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
-	paho "github.com/eclipse/paho.mqtt.golang"
-	"log"
+	"log/slog"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/tests/docker"
+	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
 func TestVernemqApi(t *testing.T) {
@@ -82,7 +83,7 @@ func TestVernemqApi(t *testing.T) {
 }
 
 func connectClient(ctx context.Context, wg *sync.WaitGroup, brokerUrl string, clientId string, subscriptionCount int) (knownTopics []string, err error) {
-	log.Println("connect client")
+	slog.Default().Info("connect client")
 	options := paho.NewClientOptions().
 		SetClientID(clientId).
 		SetUsername("test").
@@ -93,7 +94,7 @@ func connectClient(ctx context.Context, wg *sync.WaitGroup, brokerUrl string, cl
 
 	mqtt := paho.NewClient(options)
 	if token := mqtt.Connect(); token.Wait() && token.Error() != nil {
-		log.Println("Error on Client.Connect(): ", token.Error())
+		slog.Default().Error("Error on Client.Connect()", "error", token.Error())
 		return nil, token.Error()
 	}
 

@@ -19,6 +19,11 @@ package worker
 import (
 	"context"
 	"errors"
+	"log"
+	"log/slog"
+	"sync"
+	"time"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
@@ -27,9 +32,6 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/models/go/models"
 	"github.com/patrickmn/go-cache"
-	"log"
-	"sync"
-	"time"
 )
 
 const lastMessageMaxAgeAttrKey = "last_message_max_age"
@@ -61,7 +63,7 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 	}
 	minimalRecheckWait, err := time.ParseDuration(config.MinimalRecheckWaitDuration)
 	if err != nil {
-		log.Printf("WARNING %v -> set MinimalRecheckWaitDuration to 0\n", err)
+		config.GetLogger().Warn("invalid MinimalRecheckWaitDuration -> set MinimalRecheckWaitDuration to 0", "error", err)
 		minimalRecheckWait = time.Duration(0)
 	}
 	return &Worker{
@@ -156,7 +158,7 @@ func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) e
 		if errors.Is(err, noStateChecksErr) {
 			return nil
 		}
-		log.Printf("ERROR: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("checking device state failed", "deviceId", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return err
 	}
 	return this.setDeviceState(device, isOnline)
@@ -173,7 +175,7 @@ func getErrorHandler(config configuration.Config) func(error) {
 func getLogErrorHandler() func(error) {
 	return func(err error) {
 		if err != nil {
-			log.Println("ERROR:", err)
+			slog.Default().Error("getLogErrorHandler()", "error", err)
 		}
 	}
 }
@@ -188,10 +190,9 @@ func getFatalErrOnRepeatHandler(maxCount int64) func(error) {
 			counter = 0
 		} else {
 			counter = counter + 1
+			slog.Default().Error("getFatalErrOnRepeatHandler", "error", err)
 			if counter > maxCount {
 				log.Fatalln("ERROR:", err)
-			} else {
-				log.Println("ERROR:", err)
 			}
 		}
 	}
@@ -203,7 +204,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	var device model.ExtendedDevice
 	device, resets, err = this.deviceprovider.GetNextDevice()
 	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
-		log.Println("no device to check found")
+		this.config.GetLogger().Error("no device to check found", "error", err)
 		return resets, nil
 	}
 	if err != nil {
@@ -214,7 +215,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 		if errors.Is(err, noStateChecksErr) {
 			return resets, nil
 		}
-		log.Printf("ERROR: checking device state failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("checking device state failed", "deviceId", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return resets, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
@@ -242,7 +243,7 @@ func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subRes
 	var isOnline bool
 	if this.config.Debug {
 		defer func() {
-			log.Printf("DEBUG: check device connection state id=%v owner=%v local-id=%v result=%v lm-available=%v sub-available=%v lm-result=%v sub-result=%v lm-err=%v sub-err=%v", device.Id, device.OwnerId, device.LocalId, isOnline, lmAvailable, subAvailable, lmOnline, subOnline, lmCheckErr, subCheckErr)
+			this.config.GetLogger().Debug("check device connection state", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "lm-available", lmAvailable, "sub-available", subAvailable, "lm-result", lmOnline, "sub-result", subOnline, "lm-err", lmCheckErr, "sub-err", subCheckErr)
 		}()
 	}
 	switch {
@@ -272,7 +273,7 @@ func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, av
 	}
 	maxAge, ok, err := getLastMessageAttr(device.Attributes)
 	if err != nil {
-		log.Printf("ERROR: getting last message attribute failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("getting last message attribute failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
 	}
 	if !ok {
@@ -284,7 +285,7 @@ func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, av
 	}
 	isOnline, err = this.lmProvider.CheckLastMessages(device.Id, serviceIDs, maxAge)
 	if err != nil {
-		log.Printf("ERROR: checking last messages failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("checking last messages failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
 	}
 	return isOnline, true, nil
@@ -296,12 +297,12 @@ func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, a
 		if errors.Is(err, common.NoSubscriptionExpected) {
 			return false, false, nil
 		}
-		log.Printf("ERROR: getting topics failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("getting topics failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
 	}
 	isOnline, err = this.checkTopics(device, topics)
 	if err != nil {
-		log.Printf("ERROR: checking subscriptions failed id=%v owner=%v local-id=%v err=%v", device.Id, device.OwnerId, device.LocalId, err)
+		this.config.GetLogger().Error("checking topics failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
 	}
 	return isOnline, true, nil
@@ -334,7 +335,7 @@ func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (o
 func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) error {
 	reloaded, err := this.deviceprovider.GetDevice(device.Id)
 	if err != nil {
-		log.Println("WARNING: unable to reload device info", err)
+		this.config.GetLogger().Error("updating device state failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return err
 	}
 	currentlyOnline := reloaded.ConnectionState == models.ConnectionStateOnline

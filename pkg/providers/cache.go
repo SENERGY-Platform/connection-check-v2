@@ -19,9 +19,10 @@ package providers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/patrickmn/go-cache"
-	"log"
+	"log/slog"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type Cache struct {
@@ -74,8 +75,8 @@ func (this *Cache) use(key string, expiration time.Duration, getter func() (inte
 	if err == nil {
 		err = json.Unmarshal(value, result)
 		return
-	} else if err != ErrNotFound {
-		log.Println("WARNING: err in LocalCache::cache.Get()", err)
+	} else if !errors.Is(err, ErrNotFound) {
+		slog.Default().Warn("err in LocalCache::cache.Get()", "error", err)
 	}
 	temp, err := getter()
 	if err != nil {
@@ -90,6 +91,6 @@ func (this *Cache) use(key string, expiration time.Duration, getter func() (inte
 }
 
 func (this *Cache) Reset() {
-	log.Println("reset cache")
+	slog.Default().Debug("reset cache")
 	this.cache.Flush()
 }

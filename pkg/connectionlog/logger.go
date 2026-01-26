@@ -19,15 +19,17 @@ package connectionlog
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"log"
+	"log/slog"
+	"os"
+	"sync"
+	"time"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
 	"github.com/segmentio/kafka-go"
-	"io"
-	"log"
-	"os"
-	"sync"
-	"time"
 )
 
 type Logger struct {
@@ -58,6 +60,7 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 		Logger:      logger,
 		BatchSize:   1,
 		Balancer:    &kafka.Hash{},
+		Compression: kafka.Snappy,
 	}
 	wg.Add(1)
 	go func() {
@@ -65,7 +68,7 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 		<-ctx.Done()
 		err := writer.Close()
 		if err != nil {
-			log.Println("ERROR: unable to close producer for", topic, err)
+			slog.Default().Error("unable to close producer for", "topic", topic, "error", err)
 		}
 	}()
 	return writer
@@ -73,7 +76,7 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 
 func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceDisconnected.Inc()
-	log.Printf("log device %v as disconnected", device.Id)
+	slog.Default().Debug("log device disconnect", "deviceId", device.Id)
 	monitorConnectionState := ""
 	for _, attr := range device.Attributes {
 		if attr.Key == "monitor_connection_state" {
@@ -103,7 +106,7 @@ func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 
 func (this *Logger) LogDeviceConnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceConnected.Inc()
-	log.Printf("log device %v as connected", device.Id)
+	slog.Default().Debug("log device connect", "deviceId", device.Id)
 	b, err := json.Marshal(DeviceLog{
 		Connected:              true,
 		Id:                     device.Id,
@@ -127,7 +130,7 @@ func (this *Logger) LogDeviceConnect(device model.ExtendedDevice) error {
 
 func (this *Logger) LogHubConnect(id string) error {
 	this.metrics.SendHubConnected.Inc()
-	log.Printf("log hub %v as connected", id)
+	slog.Default().Debug("log hub connect", "hubId", id)
 	b, err := json.Marshal(HubLog{
 		Connected: true,
 		Id:        id,
@@ -148,7 +151,7 @@ func (this *Logger) LogHubConnect(id string) error {
 
 func (this *Logger) LogHubDisconnect(id string) error {
 	this.metrics.SendHubDisconnected.Inc()
-	log.Printf("log hub %v as disconnected", id)
+	slog.Default().Debug("log hub disconnect", "hubId", id)
 	b, err := json.Marshal(HubLog{
 		Connected: false,
 		Id:        id,
