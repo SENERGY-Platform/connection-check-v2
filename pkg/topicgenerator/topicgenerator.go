@@ -18,6 +18,7 @@ package topicgenerator
 
 import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/known"
+	_ "github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/lorawan"
 	_ "github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/mqtt"
 	_ "github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/nimbus"
 	_ "github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/senergy"
