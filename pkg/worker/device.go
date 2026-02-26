@@ -309,6 +309,9 @@ func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, a
 }
 
 func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
+	if this.verne == nil {
+		return false, nil
+	}
 	hintTopic, useHint := this.getHint(device)
 	if useHint {
 		onlineSubscriptionExists, err = this.verne.CheckTopic(hintTopic)

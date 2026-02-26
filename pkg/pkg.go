@@ -75,7 +75,10 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 		return err
 	}
 	lmProvider := providers.NewLastMessageStateProvider(lmClient, config.UseUTC)
-	verne := vernemq.New(config, metrics)
+	var verne *vernemq.Vernemq
+	if config.VerneManagementUrl != "" {
+		verne = vernemq.New(config, metrics)
+	}
 	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, verne, metrics)
 	if err != nil {
 		return err

@@ -79,6 +79,9 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
+	if this.verne == nil { // TODO implement for lora
+		return resets, nil
+	}
 	isOnline, err := this.verne.CheckClient(hub.Id)
 	if err != nil {
 		return resets, err
