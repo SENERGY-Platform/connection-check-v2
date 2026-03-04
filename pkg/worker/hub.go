@@ -19,6 +19,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -120,6 +121,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 						if k == lpc_model.ChirpTagUserId && v == hub.OwnerId {
 							isOnline := g.State == chirpstack.GatewayState_ONLINE
 							if (hub.ConnectionState == models.ConnectionStateOnline) != isOnline {
+								this.config.GetLogger().Info("setting hub state", "hubId", hub.Id, "online", isOnline)
 								return resets, this.updateHubState(hub, isOnline)
 							}
 							return resets, nil
