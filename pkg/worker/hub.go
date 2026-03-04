@@ -35,7 +35,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 		return nil
 	}
 	batchLoopStartTime := time.Now()
-	if this.config.TopicGenerator != "senergy" {
+	if this.config.TopicGenerator != "senergy" && this.config.TopicGenerator != "lorawan" {
 		this.config.GetLogger().Warn("hub connection check is currently only for the senergy connector supported")
 		return nil
 	}
