@@ -73,6 +73,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 func (this *Worker) runHubCheck() (resets int, err error) {
 	this.metrics.HubsChecked.Inc()
 	start := time.Now()
+	defer func() { this.metrics.HubCheckLatencyMs.Set(float64(time.Since(start).Milliseconds())) }()
 	hub := models.ExtendedHub{}
 	hub, resets, err = this.hubprovider.GetNextHub()
 	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
@@ -82,12 +83,12 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
+	eui := lpc.GetHubEUI(&hub.Hub)
 	if this.config.TopicGenerator == "lorawan" {
 		if this.chirpGateway == nil || this.chirpTenant == nil {
 			this.config.GetLogger().Error("no connection check provider available", "hubId", hub.Id)
 			return resets, nil
 		}
-		eui := lpc.GetHubEUI(&hub.Hub)
 		if eui == nil {
 			return resets, nil
 		}
@@ -117,7 +118,11 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 					}
 					for k, v := range tenant.Tenant.Tags {
 						if k == lpc_model.ChirpTagUserId && v == hub.OwnerId {
-							return resets, this.updateHubState(hub, g.State == chirpstack.GatewayState_ONLINE)
+							isOnline := g.State == chirpstack.GatewayState_ONLINE
+							if (hub.ConnectionState == models.ConnectionStateOnline) != isOnline {
+								return resets, this.updateHubState(hub, isOnline)
+							}
+							return resets, nil
 						}
 					}
 				}
@@ -129,11 +134,14 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 		}
 		return resets, nil
 	}
+	if eui != nil {
+		// will be handeled by lorawan topic generator
+		return resets, nil
+	}
 	isOnline, err := this.verne.CheckClient(hub.Id)
 	if err != nil {
 		return resets, err
 	}
-	this.metrics.HubCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
 	if hub.ConnectionState == models.ConnectionStateUnknown {
 		return resets, this.updateHubState(hub, isOnline)
 	}
