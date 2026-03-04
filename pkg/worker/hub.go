@@ -82,7 +82,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	if this.verne == nil {
+	if this.config.TopicGenerator == "lorawan" {
 		if this.chirpGateway == nil || this.chirpTenant == nil {
 			this.config.GetLogger().Error("no connection check provider available", "hubId", hub.Id)
 			return resets, nil
