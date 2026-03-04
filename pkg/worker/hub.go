@@ -108,7 +108,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 			}
 			for _, g := range gw.Result {
 				// Check if any of the found gateways has a matching EUI.
-				if &g.GatewayId == eui {
+				if g.GatewayId == *eui {
 					// Check if the tenant of the gateway has a tag with the user id of the hub owner
 					tenant, err := this.chirpTenant.Get(ctx, &chirpstack.GetTenantRequest{
 						Id: g.TenantId,
