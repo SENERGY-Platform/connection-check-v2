@@ -84,18 +84,16 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	if config.VerneManagementUrl != "" {
 		verne = vernemq.New(config, metrics)
 	}
-	var chirpGateway *chirpstack.GatewayServiceClient
-	var chirpTenant *chirpstack.TenantServiceClient
+	var chirpGateway chirpstack.GatewayServiceClient
+	var chirpTenant chirpstack.TenantServiceClient
 	if config.ChirpstackUrl != "" && config.ChirpstackToken != "" {
 		token := lpc.ChirpstackToken(config.ChirpstackToken)
 		conn, err := grpc.NewClient(config.ChirpstackUrl, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})), grpc.WithPerRPCCredentials(token))
 		if err != nil {
 			return err
 		}
-		c := chirpstack.NewGatewayServiceClient(conn)
-		chirpGateway = &c
-		c2 := chirpstack.NewTenantServiceClient(conn)
-		chirpTenant = &c2
+		chirpGateway = chirpstack.NewGatewayServiceClient(conn)
+		chirpTenant = chirpstack.NewTenantServiceClient(conn)
 	}
 
 	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, verne, metrics, chirpGateway, chirpTenant)

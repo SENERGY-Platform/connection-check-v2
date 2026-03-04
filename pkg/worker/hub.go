@@ -36,7 +36,7 @@ func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
 	}
 	batchLoopStartTime := time.Now()
 	if this.config.TopicGenerator != "senergy" && this.config.TopicGenerator != "lorawan" {
-		this.config.GetLogger().Warn("hub connection check is currently only for the senergy connector supported")
+		this.config.GetLogger().Warn("hub connection check is currently only for the senergy or lorawan connector supported")
 		return nil
 	}
 	dur, err := time.ParseDuration(this.config.HubCheckInterval)
@@ -82,7 +82,11 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	if this.verne == nil && this.chirpGateway != nil && this.chirpTenant != nil {
+	if this.verne == nil {
+		if this.chirpGateway == nil || this.chirpTenant == nil {
+			this.config.GetLogger().Error("no connection check provider available", "hubId", hub.Id)
+			return resets, nil
+		}
 		eui := lpc.GetHubEUI(&hub.Hub)
 		if eui == nil {
 			return resets, nil
@@ -93,7 +97,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 		var offset uint32 = 0
 		for {
 			// search all gateways with the same name as the hub, because chirpstack does not support searching by EUI.
-			gw, err := (*this.chirpGateway).List(ctx, &chirpstack.ListGatewaysRequest{
+			gw, err := this.chirpGateway.List(ctx, &chirpstack.ListGatewaysRequest{
 				Limit:  limit,
 				Offset: offset,
 				Search: hub.Name,
@@ -105,7 +109,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 				// Check if any of the found gateways has a matching EUI.
 				if &g.GatewayId == eui {
 					// Check if the tenant of the gateway has a tag with the user id of the hub owner
-					tenant, err := (*this.chirpTenant).Get(ctx, &chirpstack.GetTenantRequest{
+					tenant, err := this.chirpTenant.Get(ctx, &chirpstack.GetTenantRequest{
 						Id: g.TenantId,
 					})
 					if err != nil || tenant.Tenant == nil {

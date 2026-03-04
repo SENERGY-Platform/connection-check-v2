@@ -51,11 +51,11 @@ type Worker struct {
 	hintstore          *cache.Cache
 	metrics            *prometheus.Metrics
 	minimalRecheckWait time.Duration
-	chirpGateway       *api.GatewayServiceClient
-	chirpTenant        *api.TenantServiceClient
+	chirpGateway       api.GatewayServiceClient
+	chirpTenant        api.TenantServiceClient
 }
 
-func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, lmProvider LastMessageProvider, verne Verne, metrics *prometheus.Metrics, chirpGateway *api.GatewayServiceClient, chirpTenant *api.TenantServiceClient) (*Worker, error) {
+func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, lmProvider LastMessageProvider, verne Verne, metrics *prometheus.Metrics, chirpGateway api.GatewayServiceClient, chirpTenant api.TenantServiceClient) (*Worker, error) {
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
