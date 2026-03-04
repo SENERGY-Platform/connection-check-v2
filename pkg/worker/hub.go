@@ -19,7 +19,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
