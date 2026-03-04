@@ -62,6 +62,8 @@ type Config struct {
 	ServerPort                                string   `json:"server_port"`
 	ApiDocsProviderBaseUrl                    string   `json:"api_docs_provider_base_url"`
 	DeviceClassesWithoutExpectedSubscriptions []string `json:"device_classes_without_expected_subscriptions"`
+	ChirpstackUrl                             string   `json:"chirpstack_url"`
+	ChirpstackToken                           string   `json:"chirpstack_token"`
 
 	LogLevel string       `json:"log_level"`
 	logger   *slog.Logger `json:"-"`

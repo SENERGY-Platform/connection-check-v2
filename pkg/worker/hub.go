@@ -24,7 +24,10 @@ import (
 
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/providers"
+	lpc "github.com/SENERGY-Platform/lorawan-platform-connector/pkg/controller"
+	lpc_model "github.com/SENERGY-Platform/lorawan-platform-connector/pkg/model"
 	"github.com/SENERGY-Platform/models/go/models"
+	chirpstack "github.com/chirpstack/chirpstack/api/go/v4/api"
 )
 
 func (this *Worker) RunHubLoop(ctx context.Context, wg *sync.WaitGroup) error {
@@ -79,7 +82,47 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	if this.verne == nil { // TODO implement for lora
+	if this.verne == nil && this.chirpGateway != nil && this.chirpTenant != nil {
+		eui := lpc.GetHubEUI(&hub.Hub)
+		if eui == nil {
+			return resets, nil
+		}
+		ctx, cf := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cf()
+		var limit uint32 = 1000
+		var offset uint32 = 0
+		for {
+			// search all gateways with the same name as the hub, because chirpstack does not support searching by EUI.
+			gw, err := (*this.chirpGateway).List(ctx, &chirpstack.ListGatewaysRequest{
+				Limit:  limit,
+				Offset: offset,
+				Search: hub.Name,
+			})
+			if err != nil {
+				return resets, err
+			}
+			for _, g := range gw.Result {
+				// Check if any of the found gateways has a matching EUI.
+				if &g.GatewayId == eui {
+					// Check if the tenant of the gateway has a tag with the user id of the hub owner
+					tenant, err := (*this.chirpTenant).Get(ctx, &chirpstack.GetTenantRequest{
+						Id: g.TenantId,
+					})
+					if err != nil || tenant.Tenant == nil {
+						return resets, err
+					}
+					for k, v := range tenant.Tenant.Tags {
+						if k == lpc_model.ChirpTagUserId && v == hub.OwnerId {
+							return resets, this.updateHubState(hub, g.State == chirpstack.GatewayState_ONLINE)
+						}
+					}
+				}
+			}
+			if uint32(len(gw.Result)) < limit {
+				break
+			}
+			offset += limit
+		}
 		return resets, nil
 	}
 	isOnline, err := this.verne.CheckClient(hub.Id)

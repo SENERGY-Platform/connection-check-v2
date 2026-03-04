@@ -18,6 +18,7 @@ package pkg
 
 import (
 	"context"
+	"crypto/tls"
 	"log/slog"
 	"runtime/debug"
 	"sync"
@@ -32,6 +33,10 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/vernemq"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/worker"
 	"github.com/SENERGY-Platform/device-repository/lib/client"
+	lpc "github.com/SENERGY-Platform/lorawan-platform-connector/pkg/configuration"
+	chirpstack "github.com/chirpstack/chirpstack/api/go/v4/api"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config) error {
@@ -79,7 +84,21 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 	if config.VerneManagementUrl != "" {
 		verne = vernemq.New(config, metrics)
 	}
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, verne, metrics)
+	var chirpGateway *chirpstack.GatewayServiceClient
+	var chirpTenant *chirpstack.TenantServiceClient
+	if config.ChirpstackUrl != "" && config.ChirpstackToken != "" {
+		token := lpc.ChirpstackToken(config.ChirpstackToken)
+		conn, err := grpc.NewClient(config.ChirpstackUrl, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})), grpc.WithPerRPCCredentials(token))
+		if err != nil {
+			return err
+		}
+		c := chirpstack.NewGatewayServiceClient(conn)
+		chirpGateway = &c
+		c2 := chirpstack.NewTenantServiceClient(conn)
+		chirpTenant = &c2
+	}
+
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, verne, metrics, chirpGateway, chirpTenant)
 	if err != nil {
 		return err
 	}

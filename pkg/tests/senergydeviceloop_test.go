@@ -165,7 +165,7 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 	lmProvider := providers.NewLastMessageStateProvider(lmClient, false)
-	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, mock, metrics)
+	w, err := worker.New(config, logger, deviceProvider, hubProvider, deviceTypeProvider, lmProvider, mock, metrics, nil, nil)
 	if err != nil {
 		t.Error(err)
 		return

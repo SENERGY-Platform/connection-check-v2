@@ -27,5 +27,7 @@
     "http_request_timeout": "30s",
     "last_message_db_url": "",
     "use_utc": true,
-    "device_classes_without_expected_subscriptions": ["urn:infai:ses:device-class:fea0ad69-3ef2-4332-9afb-ba5885fa7045"]
+    "device_classes_without_expected_subscriptions": ["urn:infai:ses:device-class:fea0ad69-3ef2-4332-9afb-ba5885fa7045"],
+    "chirpstack_url": "",
+    "chirpstack_token": ""
 }
