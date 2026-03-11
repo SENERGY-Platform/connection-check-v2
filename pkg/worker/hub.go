@@ -83,12 +83,12 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	eui := lpc.GetHubEUI(&hub.Hub)
 	if this.config.TopicGenerator == "lorawan" {
 		if this.chirpGateway == nil || this.chirpTenant == nil {
 			this.config.GetLogger().Error("no connection check provider available", "hubId", hub.Id)
 			return resets, nil
 		}
+		eui := lpc.GetHubEUI(&hub.Hub)
 		if eui == nil {
 			return resets, nil
 		}
@@ -133,10 +133,6 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 			}
 			offset += limit
 		}
-		return resets, nil
-	}
-	if eui != nil {
-		// will be handeled by lorawan topic generator
 		return resets, nil
 	}
 	isOnline, err := this.verne.CheckClient(hub.Id)

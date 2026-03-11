@@ -78,7 +78,7 @@ func (this *HubProvider) HubMatchesProtocol(hub model.ExtendedHub) (result bool,
 		}
 
 		if len(hub.DeviceIds) == 0 {
-			return false, nil
+			return this.config.TopicGenerator == "lorawan", nil // we can check the online status of lorawan hubs without devices. hubs of different protocols will not be evaluated, even if we pass the check here
 		}
 
 		device, err, _ := this.devicerepo.ReadDevice(hub.DeviceIds[0], token, devicemodel.READ)
