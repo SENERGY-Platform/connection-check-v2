@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 )
+
+var noResultsErr = errors.New("no rows in result set")
 
 type LastMessageClientItf interface {
 	GetLastMessageTime(deviceID, serviceID string) (time.Time, error)
@@ -57,10 +61,14 @@ func (p *LastMessageStateProvider) CheckLastMessages(deviceID string, serviceIDs
 			defer wg.Done()
 			timestamp, err := p.lmClient.GetLastMessageTime(deviceID, serviceID)
 			if err != nil {
-				mu.Lock()
-				errs = append(errs, err)
-				mu.Unlock()
-				return
+				if errors.Is(err, noResultsErr) {
+					timestamp = time.Unix(0, 0)
+				} else {
+					mu.Lock()
+					errs = append(errs, err)
+					mu.Unlock()
+					return
+				}
 			}
 			mu.Lock()
 			timestamps = append(timestamps, p.getTime(timestamp))
@@ -202,6 +210,9 @@ func (c *LastMessageClient) execRequest(req *http.Request) (io.ReadCloser, error
 		errMsg, err := readString(res.Body)
 		if err != nil || errMsg == "" {
 			errMsg = res.Status
+		}
+		if res.StatusCode == http.StatusInternalServerError && strings.Contains(errMsg, noResultsErr.Error()) {
+			return nil, noResultsErr
 		}
 		return nil, fmt.Errorf("%d - %s", res.StatusCode, errMsg)
 	}
