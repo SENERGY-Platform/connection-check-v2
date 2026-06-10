@@ -39,7 +39,7 @@ func Kafka(ctx context.Context, wg *sync.WaitGroup) (kafkaUrl string, err error)
 				wait.ForListeningPort("9092/tcp"),
 			),
 			ExposedPorts:    []string{strconv.Itoa(kafkaport) + ":9092"},
-			AlwaysPullImage: false,
+			AlwaysPullImage: true,
 			Env: map[string]string{
 				"KAFKA_NODE_ID":                                  "1",
 				"CLUSTER_ID":                                     "IrzuggcFT-mWom7mj7PgtA",

@@ -80,6 +80,7 @@ func Load(location string) (config Config, err error) {
 		return config, err
 	}
 	handleEnvironmentVars(&config)
+	config.GetLogger()
 	return config, nil
 }
 
@@ -174,6 +175,7 @@ func (this *Config) GetLogger() *slog.Logger {
 			project,
 		)
 		slog.SetDefault(this.logger)
+		slog.SetLogLoggerLevel(slog.LevelInfo)
 	}
 	return this.logger
 }

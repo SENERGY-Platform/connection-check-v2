@@ -19,12 +19,13 @@ package docker
 import (
 	"context"
 	"fmt"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"io"
 	"log"
 	"strings"
 	"sync"
+
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func Influxdb(ctx context.Context, wg *sync.WaitGroup) (hostport string, containerip string, err error) {
@@ -42,6 +43,7 @@ func Influxdb(ctx context.Context, wg *sync.WaitGroup) (hostport string, contain
 				"INFLUXDB_ADMIN_USER":     "user",
 				"INFLUXDB_ADMIN_PASSWORD": "pw",
 			},
+			AlwaysPullImage: true,
 		},
 		Started: true,
 	})
@@ -85,7 +87,8 @@ func ConnectionLogWorker(ctx context.Context, wg *sync.WaitGroup, kafkaUrl, mong
 				"DEVICE_REPOSITORY_URL": deviceRepositoryUrl,
 				"DEBUG":                 "true",
 			},
-			WaitingFor: wait.ForLog("DEBUG: consume topic: \"devices\""),
+			WaitingFor:      wait.ForLog(`"level":"DEBUG","msg":"start kafka topic consumer","organization":"github.com/SENERGY-Platform","project":"connection-log-worker","topic":"devices"`),
+			AlwaysPullImage: true,
 		},
 		Started: true,
 	})
