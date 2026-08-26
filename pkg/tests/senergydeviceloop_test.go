@@ -424,7 +424,7 @@ func createDummyHubs(config configuration.Config) error {
 	c := client.NewClient(config.DeviceRepositoryUrl, nil)
 	hubs := getDummyHubs()
 	for _, hub := range hubs {
-		_, err, _ := c.SetHub(TestToken, hub)
+		_, err, _ := c.SetHub(TestToken, hub, client.HubUpdateOptions{})
 		if err != nil {
 			log.Printf("TEST: %#v", hub)
 			return err

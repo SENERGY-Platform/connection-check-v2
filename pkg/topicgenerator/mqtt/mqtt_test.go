@@ -18,13 +18,14 @@ package mqtt
 
 import (
 	"errors"
+	"reflect"
+	"testing"
+
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/model"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/known"
 	"github.com/SENERGY-Platform/models/go/models"
-	"reflect"
-	"testing"
 )
 
 func TestSortByWildcardCount(t *testing.T) {
@@ -226,13 +227,13 @@ func TestMqttTopicGenerator(t *testing.T) {
 	}
 
 	expected := []string{
-		shortDeviceId + "/s1",
-		shortDeviceId + "/#",
-		shortDeviceId + "/+",
+		longDeviceId + "/" + shortDeviceId + "/s1",
+		longDeviceId + "/" + shortDeviceId + "/#",
+		longDeviceId + "/" + shortDeviceId + "/+",
 	}
 
 	if !reflect.DeepEqual(topics, expected) {
-		t.Error(topics, expected)
+		t.Errorf("\nt=%#v\ne=%#v\n", topics, expected)
 	}
 
 }
