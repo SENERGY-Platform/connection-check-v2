@@ -209,13 +209,16 @@ func (c *LastMessageClient) execRequest(req *http.Request) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
-	if res.StatusCode >= 400 {
+	if res.StatusCode != http.StatusOK {
 		defer res.Body.Close()
 		errMsg, err := readString(res.Body)
 		if err != nil || errMsg == "" {
 			errMsg = res.Status
 		}
 		if res.StatusCode == http.StatusInternalServerError && strings.Contains(errMsg, noResultsErr.Error()) {
+			return nil, noResultsErr
+		}
+		if res.StatusCode == http.StatusNoContent {
 			return nil, noResultsErr
 		}
 		return nil, fmt.Errorf("%d - %s", res.StatusCode, errMsg)
