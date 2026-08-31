@@ -184,20 +184,24 @@ func (c *LastMessageClient) GetLastMessageTime(deviceID, serviceID string) (time
 	}
 	token, err := c.tokengen.Access()
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("get access token failed: %w", err)
 	}
 	req.Header.Set("Authorization", token)
 	body, err := c.execRequest(req)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("execute request failed: %w", err)
 	}
 	defer body.Close()
 	var tmp resp
 	err = readJSON(body, &tmp)
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("read body failed: %w", err)
 	}
-	return time.Parse(time.RFC3339, tmp.Time)
+	t, err := time.Parse(time.RFC3339, tmp.Time)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("parse time failed: %w", err)
+	}
+	return t, nil
 }
 
 func (c *LastMessageClient) execRequest(req *http.Request) (io.ReadCloser, error) {
