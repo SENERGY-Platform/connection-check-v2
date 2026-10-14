@@ -27,13 +27,26 @@ type PermDeviceType struct {
 	Name string `json:"name"`
 }
 
+// GetMonitorConnectionState returns an empty string for inactive devices to suppress offline notifications.
 func GetMonitorConnectionState(device ExtendedDevice) string {
+	if IsInactive(device) {
+		return ""
+	}
 	for _, attr := range device.Attributes {
 		if attr.Key == "monitor_connection_state" {
 			return attr.Value
 		}
 	}
 	return ""
+}
+
+func IsInactive(device ExtendedDevice) bool {
+	for _, attr := range device.Attributes {
+		if attr.Key == "inactive" && attr.Value == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 type StatesRefreshRequestItem struct {
