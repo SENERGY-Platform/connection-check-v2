@@ -632,7 +632,6 @@ func (this *Mock) Access() (token string, err error) {
 }
 
 func (this *Mock) CheckTopic(topic string) (result bool, err error) {
-	log.Println("CheckTopic", topic)
 	this.Mutex.Lock()
 	defer this.Mutex.Unlock()
 	this.CheckTopicCalls = append(this.CheckTopicCalls, topic)

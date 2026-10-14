@@ -89,6 +89,9 @@ func ConnectionLogWorker(ctx context.Context, wg *sync.WaitGroup, kafkaUrl, mong
 			},
 			WaitingFor:      wait.ForLog(`"level":"DEBUG","msg":"start kafka topic consumer","organization":"github.com/SENERGY-Platform","project":"connection-log-worker","topic":"devices"`),
 			AlwaysPullImage: true,
+			LogConsumerCfg: &testcontainers.LogConsumerConfig{
+				Consumers: []testcontainers.LogConsumer{prefixLogConsumer{prefix: "CONNECTION-LOG-WORKER:"}},
+			},
 		},
 		Started: true,
 	})
