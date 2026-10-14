@@ -77,17 +77,11 @@ func getProducer(ctx context.Context, wg *sync.WaitGroup, broker string, topic s
 func (this *Logger) LogDeviceDisconnect(device model.ExtendedDevice) error {
 	this.metrics.SendDeviceDisconnected.Inc()
 	slog.Default().Debug("log device disconnect", "deviceId", device.Id)
-	monitorConnectionState := ""
-	for _, attr := range device.Attributes {
-		if attr.Key == "monitor_connection_state" {
-			monitorConnectionState = attr.Value
-		}
-	}
 	b, err := json.Marshal(DeviceLog{
 		Connected:              false,
 		Id:                     device.Id,
 		Time:                   time.Now(),
-		MonitorConnectionState: monitorConnectionState,
+		MonitorConnectionState: model.GetMonitorConnectionState(device),
 		DeviceOwner:            device.OwnerId,
 		DeviceName:             device.DisplayName,
 	})
