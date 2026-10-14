@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
 
@@ -21,10 +21,4 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        timeout-minutes: 240
-        uses: nick-fields/retry@v2
-        with:
-          max_attempts: 3
-          retry_on: error
-          timeout_minutes: 240
-          command: go test -short -v -timeout 99999s ./...
+        run: go test -short -v -timeout 20m ./...
