@@ -36,7 +36,7 @@ func MongoDB(ctx context.Context, wg *sync.WaitGroup) (hostport string, containe
 				wait.ForListeningPort("27017/tcp"),
 			),
 			Tmpfs:           map[string]string{"/data/db": "rw"},
-			AlwaysPullImage: true,
+			AlwaysPullImage: false,
 		},
 		Started: true,
 	})

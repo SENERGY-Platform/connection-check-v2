@@ -19,6 +19,8 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -93,7 +95,13 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	time.Sleep(10 * time.Second)
+	err = waitUntil(time.Minute, func() error {
+		return checkDummyDevicesAndHubsListed(config)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	err = sendInitialDeviceConnectionStates(config)
 	if err != nil {
@@ -107,7 +115,13 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	time.Sleep(10 * time.Second)
+	err = waitUntil(time.Minute, func() error {
+		return checkInitialConnectionStatesApplied(config)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 	metrics, err := prometheus.Start(ctx, config)
 	if err != nil {
 		t.Error(err)
@@ -182,22 +196,28 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		return
 	}
 
-	time.Sleep(2 * time.Minute)
+	err = waitUntil(3*time.Minute, func() error {
+		return checkSenergyDeviceLoopResult(config, mock)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func checkSenergyDeviceLoopResult(config configuration.Config, mock *Mock) error {
 	mock.Mutex.Lock()
-	defer mock.Mutex.Unlock()
+	checkTopicCalls := slices.Clone(mock.CheckTopicCalls)
+	checkClientCalls := slices.Clone(mock.CheckClientCalls)
+	mock.Mutex.Unlock()
 
-	if slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-1-0/+") {
-		t.Errorf("%#v", mock.CheckTopicCalls)
-		return
+	if slices.Contains(checkTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-1-0/+") {
+		return fmt.Errorf("%#v", checkTopicCalls)
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-98/+") {
-		t.Errorf("%#v", mock.CheckTopicCalls)
-		return
+	if !slices.Contains(checkTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-98/+") {
+		return fmt.Errorf("%#v", checkTopicCalls)
 	}
-	if !slices.Contains(mock.CheckTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-99/+") {
-		t.Errorf("%#v", mock.CheckTopicCalls)
-		return
+	if !slices.Contains(checkTopicCalls, "command/dd69ea0d-f553-4336-80f3-7f4567f85c7b/lid-0-99/+") {
+		return fmt.Errorf("%#v", checkTopicCalls)
 	}
 
 	deviceRepo := client.NewClient(config.DeviceRepositoryUrl, nil)
@@ -206,28 +226,23 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		Limit:         200,
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	if len(senergyLikeDevices) != 200 {
-		t.Errorf("%#v", senergyLikeDevices)
-		return
+		return fmt.Errorf("%#v", senergyLikeDevices)
 	}
 	for _, device := range senergyLikeDevices {
 		parts := strings.Split(strings.TrimPrefix(device.LocalId, "lid-"), "-")
 		if len(parts) != 2 {
-			t.Errorf("%#v", parts)
-			return
+			return fmt.Errorf("%#v", parts)
 		}
 		num, err := strconv.Atoi(parts[1])
 		if err != nil {
-			t.Error(err)
-			return
+			return err
 		}
 		expected := num%2 == 0
 		if !reflect.DeepEqual(device.ConnectionState == models.ConnectionStateOnline, expected) {
-			t.Errorf("%#v", device)
-			return
+			return fmt.Errorf("%#v", device)
 		}
 	}
 
@@ -236,97 +251,153 @@ func TestSenergyDeviceLoop(t *testing.T) {
 		Limit:         200,
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	if len(noneSenergyLikeDevices) != 200 {
-		t.Errorf("%#v", noneSenergyLikeDevices)
-		return
+		return fmt.Errorf("%#v", noneSenergyLikeDevices)
 	}
 	for _, device := range noneSenergyLikeDevices {
 		if device.ConnectionState != models.ConnectionStateUnknown {
-			t.Errorf("expected no anotation: %#v", device)
-			return
+			return fmt.Errorf("expected no anotation: %#v", device)
 		}
 	}
 
 	//check hubs
 
-	if slices.Contains(mock.CheckClientCalls, "unhandled-0") {
-		t.Errorf("%#v", mock.CheckClientCalls)
-		return
+	if slices.Contains(checkClientCalls, "unhandled-0") {
+		return fmt.Errorf("%#v", checkClientCalls)
 	}
-	if !slices.Contains(mock.CheckClientCalls, "offline-0") {
-		t.Errorf("%#v", mock.CheckClientCalls)
-		return
+	if !slices.Contains(checkClientCalls, "offline-0") {
+		return fmt.Errorf("%#v", checkClientCalls)
 	}
-	if !slices.Contains(mock.CheckClientCalls, "offline-9") {
-		t.Errorf("%#v", mock.CheckClientCalls)
-		return
+	if !slices.Contains(checkClientCalls, "offline-9") {
+		return fmt.Errorf("%#v", checkClientCalls)
 	}
-	if !slices.Contains(mock.CheckClientCalls, "online-0") {
-		t.Errorf("%#v", mock.CheckClientCalls)
-		return
+	if !slices.Contains(checkClientCalls, "online-0") {
+		return fmt.Errorf("%#v", checkClientCalls)
 	}
-	if !slices.Contains(mock.CheckClientCalls, "online-9") {
-		t.Errorf("%#v", mock.CheckClientCalls)
-		return
+	if !slices.Contains(checkClientCalls, "online-9") {
+		return fmt.Errorf("%#v", checkClientCalls)
 	}
 
 	hubs, _, err, _ := deviceRepo.ListExtendedHubs(TestToken, client.HubListOptions{
 		Limit: 200,
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	if len(hubs) != 40 {
-		t.Errorf("%v, %#v\n", len(hubs), hubs)
-		return
+		return fmt.Errorf("%v, %#v\n", len(hubs), hubs)
 	}
 	for _, hub := range hubs {
 		if strings.HasPrefix(hub.Id, "online-") {
 			if hub.ConnectionState != models.ConnectionStateOnline {
-				t.Errorf("%#v", hub)
+				return fmt.Errorf("%#v", hub)
 			}
 		} else if strings.HasPrefix(hub.Id, "offline-") {
 			if hub.ConnectionState != models.ConnectionStateOffline {
-				t.Errorf("%#v", hub)
+				return fmt.Errorf("%#v", hub)
 			}
 		} else {
 			if hub.ConnectionState != models.ConnectionStateUnknown {
-				t.Errorf("expected no anotation: %#v", hub)
+				return fmt.Errorf("expected no anotation: %#v", hub)
 			}
 		}
 	}
 
 	resp, err := http.Get("http://localhost:8080/metrics")
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
+	defer resp.Body.Close()
 	pl, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	payload := string(pl)
 	if !strings.Contains(payload, "senergy_send_device_connected_count 50") {
-		t.Error(payload)
-		return
+		return errors.New("unexpected metrics: " + payload)
 	}
 	if !strings.Contains(payload, "senergy_send_device_disconnected_count 50") {
-		t.Error(payload)
-		return
+		return errors.New("unexpected metrics: " + payload)
 	}
 	if !strings.Contains(payload, "senergy_send_hub_connected_count 5") {
-		t.Error(payload)
-		return
+		return errors.New("unexpected metrics: " + payload)
 	}
 	if !strings.Contains(payload, "senergy_send_hub_disconnected_count 5") {
-		t.Error(payload)
-		return
+		return errors.New("unexpected metrics: " + payload)
 	}
+	return nil
+}
+
+func checkDummyDevicesAndHubsListed(config configuration.Config) error {
+	deviceRepo := client.NewClient(config.DeviceRepositoryUrl, nil)
+	for _, deviceTypeId := range []string{"urn:infai:ses:device-type:0", "urn:infai:ses:device-type:1"} {
+		devices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.ExtendedDeviceListOptions{
+			DeviceTypeIds: []string{deviceTypeId},
+			Limit:         200,
+		})
+		if err != nil {
+			return err
+		}
+		if len(devices) != 200 {
+			return fmt.Errorf("expected 200 devices of %v, got %v", deviceTypeId, len(devices))
+		}
+	}
+	hubs, _, err, _ := deviceRepo.ListExtendedHubs(TestToken, client.HubListOptions{
+		Limit: 200,
+	})
+	if err != nil {
+		return err
+	}
+	if len(hubs) != 40 {
+		return fmt.Errorf("expected 40 hubs, got %v", len(hubs))
+	}
+	return nil
+}
+
+// checkInitialConnectionStatesApplied checks the states of the last device and hub log messages sent;
+// the topics have one partition, so all earlier messages have been applied as well.
+func checkInitialConnectionStatesApplied(config configuration.Config) error {
+	deviceRepo := client.NewClient(config.DeviceRepositoryUrl, nil)
+	devices, _, err, _ := deviceRepo.ListExtendedDevices(TestToken, client.ExtendedDeviceListOptions{
+		DeviceTypeIds: []string{"urn:infai:ses:device-type:0"},
+		Limit:         200,
+	})
+	if err != nil {
+		return err
+	}
+	lastDeviceFound := false
+	for _, device := range devices {
+		if device.Id == "urn:infai:ses:device:0-199" {
+			lastDeviceFound = true
+			if device.ConnectionState != models.ConnectionStateOffline {
+				return fmt.Errorf("initial state of %v not applied yet: %#v", device.Id, device.ConnectionState)
+			}
+		}
+	}
+	if !lastDeviceFound {
+		return errors.New("device urn:infai:ses:device:0-199 not found")
+	}
+	hubs, _, err, _ := deviceRepo.ListExtendedHubs(TestToken, client.HubListOptions{
+		Limit: 200,
+	})
+	if err != nil {
+		return err
+	}
+	lastHubFound := false
+	for _, hub := range hubs {
+		if hub.Id == "offline-9" {
+			lastHubFound = true
+			if hub.ConnectionState != models.ConnectionStateOffline {
+				return fmt.Errorf("initial state of %v not applied yet: %#v", hub.Id, hub.ConnectionState)
+			}
+		}
+	}
+	if !lastHubFound {
+		return errors.New("hub offline-9 not found")
+	}
+	return nil
 }
 
 func sendInitialDeviceConnectionStates(config configuration.Config) error {

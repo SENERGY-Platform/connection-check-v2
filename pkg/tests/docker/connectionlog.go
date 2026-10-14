@@ -43,7 +43,7 @@ func Influxdb(ctx context.Context, wg *sync.WaitGroup) (hostport string, contain
 				"INFLUXDB_ADMIN_USER":     "user",
 				"INFLUXDB_ADMIN_PASSWORD": "pw",
 			},
-			AlwaysPullImage: true,
+			AlwaysPullImage: false,
 		},
 		Started: true,
 	})

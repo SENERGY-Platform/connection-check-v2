@@ -19,6 +19,7 @@ package tests
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/configuration"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/connectionlog"
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/prometheus"
@@ -129,14 +130,21 @@ func TestMqttDeviceLoop(t *testing.T) {
 		return
 	}
 
-	time.Sleep(2 * time.Minute)
+	err = waitUntil(3*time.Minute, func() error {
+		return checkMqttDeviceLoopResult(config, mock)
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func checkMqttDeviceLoopResult(config configuration.Config, mock *Mock) error {
 	mock.Mutex.Lock()
-	defer mock.Mutex.Unlock()
+	checkTopicCallCount := len(mock.CheckTopicCalls)
+	mock.Mutex.Unlock()
 
-	if len(mock.CheckTopicCalls) < 200 {
-		t.Errorf("%#v", len(mock.CheckTopicCalls))
-		return
+	if checkTopicCallCount < 200 {
+		return fmt.Errorf("%#v", checkTopicCallCount)
 	}
 
 	deviceRepo := client.NewClient(config.DeviceRepositoryUrl, nil)
@@ -145,17 +153,14 @@ func TestMqttDeviceLoop(t *testing.T) {
 		Limit:         200,
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	if len(senergyLikeDevices) != 200 {
-		t.Errorf("%#v", senergyLikeDevices)
-		return
+		return fmt.Errorf("%#v", senergyLikeDevices)
 	}
 	for i, device := range senergyLikeDevices {
 		if !reflect.DeepEqual(device.ConnectionState, models.ConnectionStateOnline) {
-			t.Errorf("%v %#v", i, device)
-			return
+			return fmt.Errorf("%v %#v", i, device)
 		}
 	}
 
@@ -164,19 +169,17 @@ func TestMqttDeviceLoop(t *testing.T) {
 		Limit:         200,
 	})
 	if err != nil {
-		t.Error(err)
-		return
+		return err
 	}
 	if len(noneSenergyLikeDevices) != 200 {
-		t.Errorf("%#v", noneSenergyLikeDevices)
-		return
+		return fmt.Errorf("%#v", noneSenergyLikeDevices)
 	}
 	for _, device := range noneSenergyLikeDevices {
 		if device.ConnectionState != models.ConnectionStateUnknown {
-			t.Errorf("expected no anotation: %#v", device)
-			return
+			return fmt.Errorf("expected no anotation: %#v", device)
 		}
 	}
+	return nil
 }
 
 func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
@@ -228,7 +231,13 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 		return
 	}
 
-	time.Sleep(10 * time.Second)
+	err = waitUntil(time.Minute, func() error {
+		return checkDummyDevicesAndHubsListed(config)
+	})
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	mock := &Mock{}
 	deviceTypeProvider, err := providers.NewDeviceTypeProvider(config, mock)
