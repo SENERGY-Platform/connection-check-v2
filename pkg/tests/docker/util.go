@@ -19,22 +19,11 @@ package docker
 import (
 	"context"
 	"errors"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"net"
-	"strings"
 	"time"
 )
-
-// prefixLogConsumer prints container log lines with a prefix to tell them apart from the test output
-type prefixLogConsumer struct {
-	prefix string
-}
-
-func (this prefixLogConsumer) Accept(l testcontainers.Log) {
-	log.Println(this.prefix, strings.TrimSpace(string(l.Content)))
-}
 
 func getFreePort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
