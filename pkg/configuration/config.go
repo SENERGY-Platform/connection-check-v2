@@ -37,11 +37,11 @@ type Config struct {
 	TopicGenerator                            string   `json:"topic_generator"`
 	KafkaUrl                                  string   `json:"kafka_url"`
 	DeviceRepositoryUrl                       string   `json:"device_repository_url"`
-	VerneManagementUrl                        string   `json:"verne_management_url"`
+	VerneManagementUrl                        string   `json:"verne_management_url" config:"secret"`
 	HandledProtocols                          []string `json:"handled_protocols"`
 	AuthEndpoint                              string   `json:"auth_endpoint"`
-	AuthClientId                              string   `json:"auth_client_id"`
-	AuthClientSecret                          string   `json:"auth_client_secret"`
+	AuthClientId                              string   `json:"auth_client_id" config:"secret"`
+	AuthClientSecret                          string   `json:"auth_client_secret" config:"secret"`
 	AuthExpirationTimeBuffer                  float64  `json:"auth_expiration_time_buffer"`
 	DeviceTypeCacheExpiration                 string   `json:"device_type_cache_expiration"`
 	HubProtocolCheckCacheExpiration           string   `json:"hub_protocol_check_cache_expiration"`
@@ -62,8 +62,8 @@ type Config struct {
 	ServerPort                                string   `json:"server_port"`
 	ApiDocsProviderBaseUrl                    string   `json:"api_docs_provider_base_url"`
 	DeviceClassesWithoutExpectedSubscriptions []string `json:"device_classes_without_expected_subscriptions"`
-	ChirpstackUrl                             string   `json:"chirpstack_url"`
-	ChirpstackToken                           string   `json:"chirpstack_token"`
+	ChirpstackUrl                             string   `json:"chirpstack_url" config:"secret"`
+	ChirpstackToken                           string   `json:"chirpstack_token" config:"secret"`
 
 	LogLevel string       `json:"log_level"`
 	logger   *slog.Logger `json:"-"`
