@@ -17,7 +17,6 @@
 package auth
 
 import (
-	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -47,8 +46,11 @@ type Security struct {
 func (this *Security) ResetAccess() {
 	this.mux.Lock()
 	defer this.mux.Unlock()
-	b, _ := json.Marshal(this.openid)
-	slog.Default().Debug("reset OpenidToken", "token", string(b))
+	if this.openid != nil {
+		slog.Default().Debug("reset OpenidToken", "expires_in", this.openid.ExpiresIn, "refresh_expires_in", this.openid.RefreshExpiresIn)
+	} else {
+		slog.Default().Debug("reset OpenidToken", "token_present", false)
+	}
 	this.openid = nil
 }
 
