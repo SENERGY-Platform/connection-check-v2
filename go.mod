@@ -35,7 +35,7 @@ require (
 	github.com/SENERGY-Platform/go-env-loader v0.5.3 // indirect
 	github.com/SENERGY-Platform/mgw-cloud-proxy/cert-manager/lib v0.0.4 // indirect
 	github.com/SENERGY-Platform/permissions-v2 v0.0.47 // indirect
-	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20260826082643-802ca9df203c // indirect
+	github.com/SENERGY-Platform/platform-connector-lib v0.0.0-20261016111927-8b8b183a7008 // indirect
 	github.com/SENERGY-Platform/service-commons v0.0.0-20260821114734-3e4578ac2358 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
