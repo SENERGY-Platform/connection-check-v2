@@ -52,8 +52,6 @@ type Config struct {
 	HubCheckInterval                          string   `json:"hub_check_interval"`
 	DeviceConnectionLogTopic                  string   `json:"device_connection_log_topic"`
 	HubConnectionLogTopic                     string   `json:"hub_connection_log_topic"`
-	DeviceCheckTopicHintExpiration            string   `json:"device_check_topic_hint_expiration"`
-	UseDeviceCheckTopicHintExclusively        bool     `json:"use_device_check_topic_hint_exclusively"`
 	ExportTotalConnected                      bool     `json:"export_total_connected"`
 	MaxErrorCountTilFatal                     int64    `json:"max_error_count_til_fatal"`
 	HttpRequestTimeout                        string   `json:"http_request_timeout"`

@@ -44,21 +44,19 @@ func TestMqttDeviceLoop(t *testing.T) {
 	defer cancel()
 
 	config := configuration.Config{
-		Debug:                              true,
-		TopicGenerator:                     "mqtt",
-		HandledProtocols:                   []string{"urn:infai:ses:protocol:0"},
-		DeviceTypeCacheExpiration:          "30m",
-		PermissionsRequestDeviceBatchSize:  50,
-		DeviceCheckInterval:                "100ms",
-		DeviceConnectionLogTopic:           "device_log",
-		HubConnectionLogTopic:              "gateway_log",
-		HubCheckInterval:                   "-",
-		PermissionsRequestHubBatchSize:     11,
-		HubProtocolCheckCacheExpiration:    "1h",
-		DeviceCheckTopicHintExpiration:     "1h",
-		UseDeviceCheckTopicHintExclusively: true,
-		MaxErrorCountTilFatal:              -1,
-		HttpRequestTimeout:                 "30s",
+		Debug:                             true,
+		TopicGenerator:                    "mqtt",
+		HandledProtocols:                  []string{"urn:infai:ses:protocol:0"},
+		DeviceTypeCacheExpiration:         "30m",
+		PermissionsRequestDeviceBatchSize: 50,
+		DeviceCheckInterval:               "100ms",
+		DeviceConnectionLogTopic:          "device_log",
+		HubConnectionLogTopic:             "gateway_log",
+		HubCheckInterval:                  "-",
+		PermissionsRequestHubBatchSize:    11,
+		HubProtocolCheckCacheExpiration:   "1h",
+		MaxErrorCountTilFatal:             -1,
+		HttpRequestTimeout:                "30s",
 	}
 
 	var err error
@@ -189,20 +187,18 @@ func TestMqttDeviceProviderWithoutMqttDevices(t *testing.T) {
 	defer cancel()
 
 	config := configuration.Config{
-		Debug:                              true,
-		TopicGenerator:                     "mqtt",
-		HandledProtocols:                   []string{"urn:infai:ses:protocol:5"},
-		DeviceTypeCacheExpiration:          "30m",
-		PermissionsRequestDeviceBatchSize:  50,
-		DeviceCheckInterval:                "100ms",
-		DeviceConnectionLogTopic:           "device_log",
-		HubConnectionLogTopic:              "gateway_log",
-		HubCheckInterval:                   "-",
-		PermissionsRequestHubBatchSize:     11,
-		HubProtocolCheckCacheExpiration:    "1h",
-		DeviceCheckTopicHintExpiration:     "1h",
-		UseDeviceCheckTopicHintExclusively: true,
-		MaxErrorCountTilFatal:              -1,
+		Debug:                             true,
+		TopicGenerator:                    "mqtt",
+		HandledProtocols:                  []string{"urn:infai:ses:protocol:5"},
+		DeviceTypeCacheExpiration:         "30m",
+		PermissionsRequestDeviceBatchSize: 50,
+		DeviceCheckInterval:               "100ms",
+		DeviceConnectionLogTopic:          "device_log",
+		HubConnectionLogTopic:             "gateway_log",
+		HubCheckInterval:                  "-",
+		PermissionsRequestHubBatchSize:    11,
+		HubProtocolCheckCacheExpiration:   "1h",
+		MaxErrorCountTilFatal:             -1,
 	}
 
 	var err error

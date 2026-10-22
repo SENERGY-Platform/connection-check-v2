@@ -51,22 +51,20 @@ func TestSenergyDeviceLoop(t *testing.T) {
 	defer cancel()
 
 	config := configuration.Config{
-		Debug:                              true,
-		TopicGenerator:                     "senergy",
-		HandledProtocols:                   []string{"urn:infai:ses:protocol:0"},
-		DeviceTypeCacheExpiration:          "30m",
-		PermissionsRequestDeviceBatchSize:  50,
-		DeviceCheckInterval:                "100ms",
-		DeviceConnectionLogTopic:           "device_log",
-		HubConnectionLogTopic:              "gateway_log",
-		HubCheckInterval:                   "1s",
-		PermissionsRequestHubBatchSize:     11,
-		HubProtocolCheckCacheExpiration:    "1h",
-		DeviceCheckTopicHintExpiration:     "1h",
-		UseDeviceCheckTopicHintExclusively: false,
-		PrometheusPort:                     "8080",
-		MaxErrorCountTilFatal:              -1,
-		HttpRequestTimeout:                 "30s",
+		Debug:                             true,
+		TopicGenerator:                    "senergy",
+		HandledProtocols:                  []string{"urn:infai:ses:protocol:0"},
+		DeviceTypeCacheExpiration:         "30m",
+		PermissionsRequestDeviceBatchSize: 50,
+		DeviceCheckInterval:               "100ms",
+		DeviceConnectionLogTopic:          "device_log",
+		HubConnectionLogTopic:             "gateway_log",
+		HubCheckInterval:                  "1s",
+		PermissionsRequestHubBatchSize:    11,
+		HubProtocolCheckCacheExpiration:   "1h",
+		PrometheusPort:                    "8080",
+		MaxErrorCountTilFatal:             -1,
+		HttpRequestTimeout:                "30s",
 	}
 
 	var err error

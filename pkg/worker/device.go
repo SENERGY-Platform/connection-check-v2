@@ -32,7 +32,6 @@ import (
 	"github.com/SENERGY-Platform/connection-check-v2/pkg/topicgenerator/common"
 	"github.com/SENERGY-Platform/models/go/models"
 	"github.com/chirpstack/chirpstack/api/go/v4/api"
-	"github.com/patrickmn/go-cache"
 )
 
 const lastMessageMaxAgeAttrKey = "last_message_max_age"
@@ -48,7 +47,6 @@ type Worker struct {
 	lmProvider         LastMessageProvider
 	verne              Verne
 	topic              common.TopicGenerator
-	hintstore          *cache.Cache
 	metrics            *prometheus.Metrics
 	minimalRecheckWait time.Duration
 	chirpGateway       api.GatewayServiceClient
@@ -59,10 +57,6 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 	topic, ok := topicgenerator.Known[config.TopicGenerator]
 	if !ok {
 		return nil, errors.New("unknown topic generator: " + config.TopicGenerator)
-	}
-	deviceCheckTopicHintExpiration, err := time.ParseDuration(config.DeviceCheckTopicHintExpiration)
-	if err != nil {
-		return nil, err
 	}
 	minimalRecheckWait, err := time.ParseDuration(config.MinimalRecheckWaitDuration)
 	if err != nil {
@@ -78,7 +72,6 @@ func New(config configuration.Config, logger ConnectionLogger, deviceprovider De
 		lmProvider:         lmProvider,
 		verne:              verne,
 		topic:              topic,
-		hintstore:          cache.New(deviceCheckTopicHintExpiration, time.Minute),
 		metrics:            metrics,
 		minimalRecheckWait: minimalRecheckWait,
 		chirpGateway:       chirpGateway,
@@ -234,6 +227,7 @@ func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline bool) e
 	}
 	return nil
 }
+
 func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subResult int) (bool, error) {
 	lmOnline, lmAvailable := getExtResult(lmResult)
 	var lmCheckErr error
@@ -319,7 +313,7 @@ func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, a
 		this.config.GetLogger().Error("getting topics failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
 	}
-	isOnline, err = this.checkTopics(device, topics)
+	isOnline, err = this.checkTopics(topics)
 	if err != nil {
 		this.config.GetLogger().Error("checking topics failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return false, false, err
@@ -327,19 +321,9 @@ func (this *Worker) checkTopicsWrapper(device model.ExtendedDevice) (isOnline, a
 	return isOnline, true, nil
 }
 
-func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (onlineSubscriptionExists bool, err error) {
+func (this *Worker) checkTopics(topics []string) (onlineSubscriptionExists bool, err error) {
 	if this.verne == nil {
 		return false, nil
-	}
-	hintTopic, useHint := this.getHint(device)
-	if useHint {
-		onlineSubscriptionExists, err = this.verne.CheckTopic(hintTopic)
-		if onlineSubscriptionExists {
-			return
-		}
-		if this.config.UseDeviceCheckTopicHintExclusively {
-			return
-		}
 	}
 	for _, topic := range topics {
 		onlineSubscriptionExists, err = this.verne.CheckTopic(topic)
@@ -347,7 +331,6 @@ func (this *Worker) checkTopics(device model.ExtendedDevice, topics []string) (o
 			return
 		}
 		if onlineSubscriptionExists {
-			this.storeHint(device, topic)
 			return
 		}
 	}
