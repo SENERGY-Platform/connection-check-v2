@@ -140,6 +140,121 @@ func Test_getRequestServiceIDs(t *testing.T) {
 	}
 }
 
+func Test_getAttribute(t *testing.T) {
+	priorities := map[string]int{"low": 1, "mid": 2, "high": 3}
+	tests := []struct {
+		name       string
+		attributes []models.Attribute
+		priorities map[string]int
+		wantAttr   models.Attribute
+		wantOk     bool
+	}{
+		{
+			name:       "empty list",
+			attributes: []models.Attribute{},
+			priorities: priorities,
+		},
+		{
+			name:       "key not in list",
+			attributes: []models.Attribute{{Key: "other", Value: "v", Origin: "high"}},
+			priorities: priorities,
+		},
+		{
+			name: "single match",
+			attributes: []models.Attribute{
+				{Key: "other", Value: "x", Origin: "high"},
+				{Key: "k", Value: "v", Origin: "low"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "v", Origin: "low"},
+			wantOk:     true,
+		},
+		{
+			name: "highest priority first",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "high", Origin: "high"},
+				{Key: "k", Value: "low", Origin: "low"},
+				{Key: "k", Value: "mid", Origin: "mid"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "high", Origin: "high"},
+			wantOk:     true,
+		},
+		{
+			name: "highest priority middle",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "low", Origin: "low"},
+				{Key: "k", Value: "high", Origin: "high"},
+				{Key: "k", Value: "mid", Origin: "mid"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "high", Origin: "high"},
+			wantOk:     true,
+		},
+		{
+			name: "highest priority last",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "low", Origin: "low"},
+				{Key: "k", Value: "mid", Origin: "mid"},
+				{Key: "k", Value: "high", Origin: "high"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "high", Origin: "high"},
+			wantOk:     true,
+		},
+		{
+			name: "higher priority with other key is ignored",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "low", Origin: "low"},
+				{Key: "other", Value: "high", Origin: "high"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "low", Origin: "low"},
+			wantOk:     true,
+		},
+		{
+			name: "unknown origin loses against known origin",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "unknown", Origin: "unknown"},
+				{Key: "k", Value: "low", Origin: "low"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "low", Origin: "low"},
+			wantOk:     true,
+		},
+		{
+			name: "equal priority keeps first",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "first", Origin: "mid"},
+				{Key: "k", Value: "second", Origin: "mid"},
+			},
+			priorities: priorities,
+			wantAttr:   models.Attribute{Key: "k", Value: "first", Origin: "mid"},
+			wantOk:     true,
+		},
+		{
+			name: "nil priorities keeps first",
+			attributes: []models.Attribute{
+				{Key: "k", Value: "first", Origin: "low"},
+				{Key: "k", Value: "second", Origin: "high"},
+			},
+			wantAttr: models.Attribute{Key: "k", Value: "first", Origin: "low"},
+			wantOk:   true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attr, ok := getAttribute(tt.attributes, "k", tt.priorities)
+			if ok != tt.wantOk {
+				t.Errorf("expected ok %v, got %v", tt.wantOk, ok)
+			}
+			if !reflect.DeepEqual(attr, tt.wantAttr) {
+				t.Errorf("expected %v, got %v", tt.wantAttr, attr)
+			}
+		})
+	}
+}
+
 type lastMessageProviderMock struct {
 	IsOnline   bool
 	Error      error
