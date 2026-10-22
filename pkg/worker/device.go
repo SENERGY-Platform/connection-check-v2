@@ -364,17 +364,21 @@ func getRequestServiceIDs(services []models.Service) []string {
 	return ids
 }
 
+var lastMessageAttrPrios = map[string]int{
+	"web-ui": 2,
+	"dcc":    1,
+}
+
 func getLastMessageAttr(attributes []models.Attribute) (time.Duration, bool, error) {
-	for _, attr := range attributes {
-		if attr.Key == lastMessageMaxAgeAttrKey {
-			dur, err := time.ParseDuration(attr.Value)
-			if err != nil {
-				return 0, false, err
-			}
-			return dur, true, nil
-		}
+	attr, ok := getAttribute(attributes, lastMessageMaxAgeAttrKey, lastMessageAttrPrios)
+	if !ok {
+		return 0, false, nil
 	}
-	return 0, false, nil
+	dur, err := time.ParseDuration(attr.Value)
+	if err != nil {
+		return 0, false, err
+	}
+	return dur, true, nil
 }
 
 func getExtResult(r int) (isOnline, available bool) {
@@ -385,4 +389,26 @@ func getExtResult(r int) (isOnline, available bool) {
 		return false, true
 	}
 	return false, false
+}
+
+func getAttribute(attributes []models.Attribute, key string, originPriorities map[string]int) (models.Attribute, bool) {
+	var result models.Attribute
+	var ok bool
+	var currentPriority int
+	for _, attr := range attributes {
+		if attr.Key == key {
+			if !ok {
+				result = attr
+				currentPriority = originPriorities[attr.Origin]
+				ok = true
+				continue
+			}
+			newPriority := originPriorities[attr.Origin]
+			if newPriority > currentPriority {
+				result = attr
+				currentPriority = newPriority
+			}
+		}
+	}
+	return result, ok
 }
