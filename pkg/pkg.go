@@ -80,9 +80,17 @@ func Start(ctx context.Context, wg *sync.WaitGroup, config configuration.Config)
 		return err
 	}
 	lmProvider := providers.NewLastMessageStateProvider(lmClient, config.UseUTC)
-	var verne *vernemq.Vernemq
+	var verne worker.Verne
 	if config.VerneManagementUrl != "" {
-		verne = vernemq.New(config, metrics)
+		v, err := vernemq.New(config, metrics)
+		if err != nil {
+			return err
+		}
+		err = v.Start(ctx, wg)
+		if err != nil {
+			return err
+		}
+		verne = v
 	}
 	var chirpGateway chirpstack.GatewayServiceClient
 	var chirpTenant chirpstack.TenantServiceClient

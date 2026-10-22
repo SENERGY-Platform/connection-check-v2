@@ -50,10 +50,23 @@ func TestVernemqApi(t *testing.T) {
 
 	metrics := prometheus.NewMetrics("test")
 
-	verne := New(configuration.Config{
-		Debug:              true,
-		VerneManagementUrl: managementUrl,
+	verne, err := New(configuration.Config{
+		Debug:                        true,
+		VerneManagementUrl:           managementUrl,
+		VerneSnapshotRefreshInterval: "1m",
+		VerneSnapshotMaxAge:          "5m",
+		VerneSnapshotRowTimeout:      "5s",
+		HttpRequestTimeout:           "30s",
 	}, metrics)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	err = verne.Start(ctx, wg)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	t.Run("check known", func(t *testing.T) {
 		for _, topic := range knownTopics {
@@ -71,6 +84,30 @@ func TestVernemqApi(t *testing.T) {
 
 	t.Run("check unknown", func(t *testing.T) {
 		result, err := verne.CheckTopic("unknown")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if result {
+			t.Error(result)
+			return
+		}
+	})
+
+	t.Run("check known client", func(t *testing.T) {
+		result, err := verne.CheckClient("testclient")
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if !result {
+			t.Error(result)
+			return
+		}
+	})
+
+	t.Run("check unknown client", func(t *testing.T) {
+		result, err := verne.CheckClient("unknown")
 		if err != nil {
 			t.Error(err)
 			return

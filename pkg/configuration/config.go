@@ -38,6 +38,9 @@ type Config struct {
 	KafkaUrl                                  string   `json:"kafka_url"`
 	DeviceRepositoryUrl                       string   `json:"device_repository_url"`
 	VerneManagementUrl                        string   `json:"verne_management_url" config:"secret"`
+	VerneSnapshotRefreshInterval              string   `json:"verne_snapshot_refresh_interval"`
+	VerneSnapshotMaxAge                       string   `json:"verne_snapshot_max_age"`
+	VerneSnapshotRowTimeout                   string   `json:"verne_snapshot_row_timeout"`
 	HandledProtocols                          []string `json:"handled_protocols"`
 	AuthEndpoint                              string   `json:"auth_endpoint"`
 	AuthClientId                              string   `json:"auth_client_id" config:"secret"`
