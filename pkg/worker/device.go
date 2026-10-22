@@ -288,6 +288,7 @@ func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, av
 	if len(serviceIDs) == 0 {
 		return false, false, nil
 	}
+	this.config.GetLogger().Debug("LAST MESSAGE CHECK", "device", device.Id, "attributes", device.Attributes, "maxAge", maxAge, "service-ids", serviceIDs)
 	isOnline, err = this.lmProvider.CheckLastMessages(device.Id, serviceIDs, maxAge)
 	if err != nil {
 		this.config.GetLogger().Error("checking last messages failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
