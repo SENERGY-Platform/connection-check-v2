@@ -248,7 +248,20 @@ func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subRes
 	var isOnline bool
 	if this.config.Debug {
 		defer func() {
-			this.config.GetLogger().Debug("check device connection state", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "lm-available", lmAvailable, "sub-available", subAvailable, "lm-result", lmOnline, "sub-result", subOnline, "lm-err", lmCheckErr, "sub-err", subCheckErr)
+			this.config.GetLogger().Debug(
+				"check device connection state",
+				"device", device.Id,
+				"owner", device.OwnerId,
+				"deviceLocalId", device.LocalId,
+				"lm-result-ext", lmResult,
+				"sub-result-ext", subResult,
+				"lm-available", lmAvailable,
+				"sub-available", subAvailable,
+				"lm-result", lmOnline,
+				"sub-result", subOnline,
+				"lm-err", lmCheckErr,
+				"sub-err", subCheckErr,
+			)
 		}()
 	}
 	switch {
