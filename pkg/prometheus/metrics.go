@@ -17,7 +17,6 @@
 package prometheus
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 
@@ -161,8 +160,7 @@ func (this *Metrics) SetOnMetricsServeRequest(f func()) {
 }
 
 func (this *Metrics) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	slog.Default().Info("http request", "method", request.Method, "path", request.URL, "remote-addr", request.RemoteAddr)
-	log.Printf("%v [%v] %v \n", request.RemoteAddr, request.Method, request.URL)
+	slog.Default().Debug("http request", "method", request.Method, "path", request.URL.Path, "remote-addr", request.RemoteAddr)
 	if this.onMetricsServeRequest != nil {
 		this.onMetricsServeRequest()
 	}
