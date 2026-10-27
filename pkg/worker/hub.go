@@ -121,7 +121,7 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 							isOnline := g.State == chirpstack.GatewayState_ONLINE
 							if (hub.ConnectionState == models.ConnectionStateOnline) != isOnline {
 								this.config.GetLogger().Info("setting hub state", "hubId", hub.Id, "online", isOnline)
-								return resets, this.updateHubState(hub, isOnline)
+								return resets, this.updateHubState(hub, isOnline, false)
 							}
 							return resets, nil
 						}
@@ -140,16 +140,17 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 		return resets, err
 	}
 	if hub.ConnectionState == models.ConnectionStateUnknown {
-		return resets, this.updateHubState(hub, isOnline)
+		return resets, this.updateHubState(hub, isOnline, true)
 	}
 	expected := hub.ConnectionState == models.ConnectionStateOnline
 	if expected != isOnline {
-		return resets, this.updateHubState(hub, isOnline)
+		return resets, this.updateHubState(hub, isOnline, true)
 	}
 	return resets, nil
 }
 
-func (this *Worker) updateHubState(hub model.ExtendedHub, online bool) error {
+// fromVerne marks a state that was derived from the subscription snapshot
+func (this *Worker) updateHubState(hub model.ExtendedHub, online bool, fromVerne bool) error {
 	reloaded, err := this.hubprovider.GetHub(hub.Id)
 	if err != nil {
 		this.config.GetLogger().Error("unable to reload hub info", "hubId", hub.Id, "error", err)
@@ -161,7 +162,17 @@ func (this *Worker) updateHubState(hub model.ExtendedHub, online bool) error {
 	}
 	if online {
 		return this.logger.LogHubConnect(hub.Id)
-	} else {
-		return this.logger.LogHubDisconnect(hub.Id)
 	}
+	// the snapshot may predate a fresh session, so a disconnect of an online hub needs a live miss
+	if currentlyOnline && fromVerne {
+		stillOnline, err := this.verne.ConfirmClient(hub.Id)
+		if err != nil {
+			this.config.GetLogger().Error("confirming hub session failed", "hubId", hub.Id, "error", err)
+			return err
+		}
+		if stillOnline {
+			return nil
+		}
+	}
+	return this.logger.LogHubDisconnect(hub.Id)
 }

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -96,7 +97,7 @@ type Vernemq struct {
 type snapshot struct {
 	topics  map[string]bool
 	clients map[string]bool
-	created time.Time
+	created time.Time // when the request was sent; the broker state in the answer is not older than this
 }
 
 // fetches the first snapshot and keeps refreshing it in the background until ctx is done
@@ -133,12 +134,13 @@ func (this *Vernemq) Start(ctx context.Context, wg *sync.WaitGroup) error {
 
 func (this *Vernemq) refresh() error {
 	for attempt := 0; ; attempt++ {
+		requested := this.now()
 		table, err := this.fetch(this.limit)
 		if err != nil {
 			return err
 		}
 		if len(table) < this.limit {
-			this.store(table)
+			this.store(table, requested)
 			return nil
 		}
 		if attempt >= maxTruncationRetries {
@@ -150,7 +152,12 @@ func (this *Vernemq) refresh() error {
 }
 
 func (this *Vernemq) fetch(limit int) (table []Subscription, err error) {
-	path := "/api/v1/session/show?--is_online=true&--topic&--client_id&--limit=" + strconv.Itoa(limit) + "&--rowtimeout=" + strconv.FormatInt(this.rowTimeout.Milliseconds(), 10)
+	return this.query("--topic&--client_id&--limit=" + strconv.Itoa(limit))
+}
+
+// sends one session/show request for online sessions; selection is the query part between is_online and rowtimeout
+func (this *Vernemq) query(selection string) (table []Subscription, err error) {
+	path := "/api/v1/session/show?--is_online=true&" + selection + "&--rowtimeout=" + strconv.FormatInt(this.rowTimeout.Milliseconds(), 10)
 	req, err := http.NewRequest("GET", this.apiUrl+path, nil)
 	if err != nil {
 		return nil, err
@@ -167,16 +174,16 @@ func (this *Vernemq) fetch(limit int) (table []Subscription, err error) {
 	temp := SubscriptionWrapper{}
 	err = json.NewDecoder(resp.Body).Decode(&temp)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal vernemq subscription snapshot: %w", err)
+		return nil, fmt.Errorf("unable to unmarshal vernemq session list: %w", err)
 	}
 	return temp.Table, nil
 }
 
-func (this *Vernemq) store(table []Subscription) {
+func (this *Vernemq) store(table []Subscription, requested time.Time) {
 	next := &snapshot{
 		topics:  map[string]bool{},
 		clients: map[string]bool{},
-		created: this.now(),
+		created: requested,
 	}
 	for _, row := range table {
 		if row.Topic != "" {
@@ -240,4 +247,24 @@ func (this *Vernemq) CheckClient(clientId string) (onlineClientExists bool, err 
 		return false, err
 	}
 	return s.clients[clientId], nil
+}
+
+// asks the broker directly whether an online session subscribes to topic; leaves the snapshot untouched
+func (this *Vernemq) ConfirmTopic(topic string) (bool, error) {
+	this.metrics.TopicsChecked.Inc()
+	table, err := this.query("--topic=" + url.QueryEscape(topic) + "&--limit=1")
+	if err != nil {
+		return false, err
+	}
+	return len(table) > 0, nil
+}
+
+// asks the broker directly whether clientId has an online session; leaves the snapshot untouched
+func (this *Vernemq) ConfirmClient(clientId string) (bool, error) {
+	this.metrics.ClientsChecked.Inc()
+	table, err := this.query("--client_id=" + url.QueryEscape(clientId) + "&--limit=1")
+	if err != nil {
+		return false, err
+	}
+	return len(table) > 0, nil
 }

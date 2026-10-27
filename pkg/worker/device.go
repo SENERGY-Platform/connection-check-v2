@@ -99,6 +99,9 @@ type HubProvider interface {
 type Verne interface {
 	CheckTopic(topic string) (result bool, err error)
 	CheckClient(clientId string) (result bool, err error)
+	// live checks that bypass the snapshot, used only before a disconnect
+	ConfirmTopic(topic string) (result bool, err error)
+	ConfirmClient(clientId string) (result bool, err error)
 }
 
 type DeviceTypeProvider interface {
@@ -159,7 +162,7 @@ func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) e
 		this.config.GetLogger().Error("checking device state failed", "deviceId", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return err
 	}
-	return this.setDeviceState(device, isOnline)
+	return this.setDeviceState(device, isOnline, lmResult, subResult)
 }
 
 func getErrorHandler(config configuration.Config) func(error) {
@@ -217,13 +220,13 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 		return resets, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
-	return resets, this.setDeviceState(device, isOnline)
+	return resets, this.setDeviceState(device, isOnline, 0, 0)
 }
 
-func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline bool) error {
+func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline bool, lmResult, subResult int) error {
 	expected := device.ConnectionState == models.ConnectionStateOnline
 	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown || model.GetMonitorConnectionState(device) != "" {
-		return this.updateDeviceState(device, isOnline)
+		return this.updateDeviceState(device, isOnline, lmResult, subResult)
 	}
 	return nil
 }
@@ -337,7 +340,7 @@ func (this *Worker) checkTopics(topics []string) (onlineSubscriptionExists bool,
 	return
 }
 
-func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) error {
+func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool, lmResult, subResult int) error {
 	reloaded, err := this.deviceprovider.GetDevice(device.Id)
 	if err != nil {
 		this.config.GetLogger().Error("updating device state failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
@@ -349,9 +352,42 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool) 
 	}
 	if online {
 		return this.logger.LogDeviceConnect(reloaded)
-	} else {
-		return this.logger.LogDeviceDisconnect(reloaded)
 	}
+	// the snapshot may predate a fresh subscription, so a disconnect of an online device needs a live miss
+	if currentlyOnline && this.verne != nil && subResult == 0 {
+		subscribed, err := this.confirmTopics(reloaded)
+		if err != nil {
+			this.config.GetLogger().Error("confirming device subscription failed", "device", reloaded.Id, "owner", reloaded.OwnerId, "deviceLocalId", reloaded.LocalId, "error", err)
+			return err
+		}
+		if subscribed {
+			isOnline, err := this.getDeviceState(reloaded, lmResult, 1)
+			if err != nil {
+				return err
+			}
+			if isOnline {
+				return nil
+			}
+		}
+	}
+	return this.logger.LogDeviceDisconnect(reloaded)
+}
+
+func (this *Worker) confirmTopics(device model.ExtendedDevice) (bool, error) {
+	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
+	if errors.Is(err, common.NoSubscriptionExpected) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	for _, topic := range topics {
+		subscribed, err := this.verne.ConfirmTopic(topic)
+		if err != nil || subscribed {
+			return subscribed, err
+		}
+	}
+	return false, nil
 }
 
 func getRequestServiceIDs(services []models.Service) []string {

@@ -650,6 +650,24 @@ func (this *Mock) CheckClient(clientId string) (result bool, err error) {
 	return true, nil
 }
 
+func (this *Mock) ConfirmTopic(topic string) (result bool, err error) {
+	this.Mutex.Lock()
+	defer this.Mutex.Unlock()
+	if this.CheckTopicF != nil {
+		return this.CheckTopicF(topic), nil
+	}
+	return true, nil
+}
+
+func (this *Mock) ConfirmClient(clientId string) (result bool, err error) {
+	this.Mutex.Lock()
+	defer this.Mutex.Unlock()
+	if this.CheckClientF != nil {
+		return this.CheckClientF(clientId), nil
+	}
+	return true, nil
+}
+
 func (this *Mock) LogDeviceDisconnect(device model.ExtendedDevice) error {
 	log.Println("LogDeviceDisconnect", device.Id)
 	return nil
