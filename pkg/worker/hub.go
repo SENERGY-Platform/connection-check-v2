@@ -161,6 +161,20 @@ func (this *Worker) updateHubState(hub model.ExtendedHub, online bool, fromVerne
 		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {
+		// the snapshot may predate a fresh disconnect, so a connect of a hub that is not online needs a live hit
+		if !currentlyOnline && fromVerne {
+			stillOnline, err := this.verne.ConfirmClient(hub.Id)
+			if err != nil {
+				this.config.GetLogger().Error("confirming hub session failed", "hubId", hub.Id, "error", err)
+				return err
+			}
+			if !stillOnline {
+				if reloaded.ConnectionState != models.ConnectionStateUnknown {
+					return nil
+				}
+				return this.logger.LogHubDisconnect(hub.Id)
+			}
+		}
 		return this.logger.LogHubConnect(hub.Id)
 	}
 	// the snapshot may predate a fresh session, so a disconnect of an online hub needs a live miss

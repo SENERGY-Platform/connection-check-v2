@@ -154,7 +154,7 @@ func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) e
 	if err != nil {
 		return err
 	}
-	isOnline, err := this.getDeviceState(device, lmResult, subResult)
+	isOnline, subFromSnapshot, err := this.getDeviceState(device, lmResult, subResult)
 	if err != nil {
 		if errors.Is(err, noStateChecksErr) {
 			return nil
@@ -162,7 +162,7 @@ func (this *Worker) CheckDeviceState(deviceID string, lmResult, subResult int) e
 		this.config.GetLogger().Error("checking device state failed", "deviceId", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
 		return err
 	}
-	return this.setDeviceState(device, isOnline, lmResult, subResult)
+	return this.setDeviceState(device, isOnline, subFromSnapshot, lmResult, subResult)
 }
 
 func getErrorHandler(config configuration.Config) func(error) {
@@ -211,7 +211,7 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	if err != nil {
 		return resets, err
 	}
-	isOnline, err := this.getDeviceState(device, 0, 0)
+	isOnline, subFromSnapshot, err := this.getDeviceState(device, 0, 0)
 	if err != nil {
 		if errors.Is(err, noStateChecksErr) {
 			return resets, nil
@@ -220,18 +220,19 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 		return resets, err
 	}
 	this.metrics.DeviceCheckLatencyMs.Set(float64(time.Since(start).Milliseconds()))
-	return resets, this.setDeviceState(device, isOnline, 0, 0)
+	return resets, this.setDeviceState(device, isOnline, subFromSnapshot, 0, 0)
 }
 
-func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline bool, lmResult, subResult int) error {
+func (this *Worker) setDeviceState(device model.ExtendedDevice, isOnline, subFromSnapshot bool, lmResult, subResult int) error {
 	expected := device.ConnectionState == models.ConnectionStateOnline
 	if expected != isOnline || device.ConnectionState == models.ConnectionStateUnknown || model.GetMonitorConnectionState(device) != "" {
-		return this.updateDeviceState(device, isOnline, lmResult, subResult)
+		return this.updateDeviceState(device, isOnline, subFromSnapshot, lmResult, subResult)
 	}
 	return nil
 }
 
-func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subResult int) (bool, error) {
+// subFromSnapshot reports that the verdict includes a subscription check answered by the snapshot
+func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subResult int) (isOnline, subFromSnapshot bool, err error) {
 	lmOnline, lmAvailable := getExtResult(lmResult)
 	var lmCheckErr error
 	if !lmAvailable {
@@ -242,7 +243,6 @@ func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subRes
 	if !subAvailable {
 		subOnline, subAvailable, subCheckErr = this.checkTopicsWrapper(device)
 	}
-	var isOnline bool
 	if this.config.Debug {
 		defer func() {
 			this.config.GetLogger().Debug(
@@ -263,15 +263,15 @@ func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subRes
 	}
 	switch {
 	case lmCheckErr != nil && subCheckErr != nil:
-		return false, errors.Join(lmCheckErr, subCheckErr)
+		return false, false, errors.Join(lmCheckErr, subCheckErr)
 	case lmCheckErr != nil && !subAvailable:
-		return false, lmCheckErr
+		return false, false, lmCheckErr
 	case subCheckErr != nil && !lmAvailable:
-		return false, subCheckErr
+		return false, false, subCheckErr
 	}
 	switch {
 	case !lmAvailable && !subAvailable:
-		return false, noStateChecksErr
+		return false, false, noStateChecksErr
 	case lmAvailable && subAvailable:
 		isOnline = lmOnline && subOnline
 	case lmAvailable && !subAvailable:
@@ -279,7 +279,7 @@ func (this *Worker) getDeviceState(device model.ExtendedDevice, lmResult, subRes
 	case !lmAvailable && subAvailable:
 		isOnline = subOnline
 	}
-	return isOnline, nil
+	return isOnline, subAvailable && subResult == 0, nil
 }
 
 func (this *Worker) checkLastMessages(device model.ExtendedDevice) (isOnline, available bool, err error) {
@@ -340,7 +340,7 @@ func (this *Worker) checkTopics(topics []string) (onlineSubscriptionExists bool,
 	return
 }
 
-func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool, lmResult, subResult int) error {
+func (this *Worker) updateDeviceState(device model.ExtendedDevice, online, subFromSnapshot bool, lmResult, subResult int) error {
 	reloaded, err := this.deviceprovider.GetDevice(device.Id)
 	if err != nil {
 		this.config.GetLogger().Error("updating device state failed", "device", device.Id, "owner", device.OwnerId, "deviceLocalId", device.LocalId, "error", err)
@@ -351,17 +351,37 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool, 
 		return nil //connection check has been too slow and the device has already the new online state
 	}
 	if online {
+		// the snapshot may predate a fresh disconnect, so a connect of a device that is not online needs a live hit
+		if !currentlyOnline && subFromSnapshot && this.verne != nil && subResult == 0 {
+			subscribed, expected, err := this.confirmTopics(reloaded)
+			if err != nil {
+				this.config.GetLogger().Error("confirming device subscription failed", "device", reloaded.Id, "owner", reloaded.OwnerId, "deviceLocalId", reloaded.LocalId, "error", err)
+				return err
+			}
+			if expected && !subscribed {
+				isOnline, _, err := this.getDeviceState(reloaded, lmResult, -1)
+				if err != nil {
+					return err
+				}
+				if currentlyOnline == isOnline && reloaded.ConnectionState != models.ConnectionStateUnknown && model.GetMonitorConnectionState(reloaded) == "" {
+					return nil
+				}
+				if !isOnline {
+					return this.logger.LogDeviceDisconnect(reloaded)
+				}
+			}
+		}
 		return this.logger.LogDeviceConnect(reloaded)
 	}
 	// the snapshot may predate a fresh subscription, so a disconnect of an online device needs a live miss
 	if currentlyOnline && this.verne != nil && subResult == 0 {
-		subscribed, err := this.confirmTopics(reloaded)
+		subscribed, _, err := this.confirmTopics(reloaded)
 		if err != nil {
 			this.config.GetLogger().Error("confirming device subscription failed", "device", reloaded.Id, "owner", reloaded.OwnerId, "deviceLocalId", reloaded.LocalId, "error", err)
 			return err
 		}
 		if subscribed {
-			isOnline, err := this.getDeviceState(reloaded, lmResult, 1)
+			isOnline, _, err := this.getDeviceState(reloaded, lmResult, 1)
 			if err != nil {
 				return err
 			}
@@ -373,21 +393,22 @@ func (this *Worker) updateDeviceState(device model.ExtendedDevice, online bool, 
 	return this.logger.LogDeviceDisconnect(reloaded)
 }
 
-func (this *Worker) confirmTopics(device model.ExtendedDevice) (bool, error) {
+// expected is false when the device needs no subscription, subscribed is then false as well
+func (this *Worker) confirmTopics(device model.ExtendedDevice) (subscribed, expected bool, err error) {
 	topics, err := this.topic(this.config, this.deviceTypeProvider, device)
 	if errors.Is(err, common.NoSubscriptionExpected) {
-		return false, nil
+		return false, false, nil
 	}
 	if err != nil {
-		return false, err
+		return false, true, err
 	}
 	for _, topic := range topics {
-		subscribed, err := this.verne.ConfirmTopic(topic)
+		subscribed, err = this.verne.ConfirmTopic(topic)
 		if err != nil || subscribed {
-			return subscribed, err
+			return subscribed, true, err
 		}
 	}
-	return false, nil
+	return false, true, nil
 }
 
 func getRequestServiceIDs(services []models.Service) []string {

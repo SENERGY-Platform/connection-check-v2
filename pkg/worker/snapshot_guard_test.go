@@ -39,12 +39,12 @@ const guardDeviceTopic = "command/o1/l1/+"
 type guardVerne struct {
 	topics, clients         map[string]bool
 	liveTopics, liveClients map[string]bool
-	confirmErr              error
+	checkErr, confirmErr    error
 	confirmCalls            []string
 }
 
 func (this *guardVerne) CheckTopic(topic string) (bool, error) {
-	return this.topics[topic], nil
+	return this.topics[topic], this.checkErr
 }
 
 func (this *guardVerne) CheckClient(clientId string) (bool, error) {
@@ -91,6 +91,20 @@ type guardDeviceTypes struct {
 
 func (this guardDeviceTypes) GetDeviceType(id string) (models.DeviceType, error) {
 	return models.DeviceType{Id: id, DeviceClassId: this.deviceClassId}, nil
+}
+
+// answers the first request like guardDeviceTypes and every later one with laterDeviceClassId
+type guardSwitchingDeviceTypes struct {
+	calls              int
+	laterDeviceClassId string
+}
+
+func (this *guardSwitchingDeviceTypes) GetDeviceType(id string) (models.DeviceType, error) {
+	this.calls++
+	if this.calls > 1 {
+		return models.DeviceType{Id: id, DeviceClassId: this.laterDeviceClassId}, nil
+	}
+	return models.DeviceType{Id: id}, nil
 }
 
 type guardLastMessages struct {
@@ -239,10 +253,115 @@ func TestDeviceWithoutExpectedSubscriptionSkipsConfirm(t *testing.T) {
 	setup.expectConfirmCalls(t, 0)
 }
 
-func TestDeviceConnectSkipsConfirm(t *testing.T) {
+func TestDeviceSnapshotHitWithLiveHitIsConnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.verne.topics[guardDeviceTopic] = true
+	setup.verne.liveTopics[guardDeviceTopic] = true
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 1, 0, 0, 0)
+	setup.expectConfirmCalls(t, 1)
+}
+
+func TestDeviceSnapshotHitWithLiveMissIsNotConnected(t *testing.T) {
 	setup := newGuardSetup(models.ConnectionStateOffline)
 	setup.verne.topics[guardDeviceTopic] = true
 	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+	setup.expectConfirmCalls(t, 2)
+}
+
+func TestDeviceLiveMissWithLastMessageOnlineIsNotConnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.withLastMessages(true)
+	setup.verne.topics[guardDeviceTopic] = true
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+}
+
+func TestUnknownDeviceWithSnapshotHitAndLiveMissIsDisconnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateUnknown)
+	setup.verne.topics[guardDeviceTopic] = true
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 1, 0, 0)
+	setup.expectConfirmCalls(t, 2) // a disconnect after a live miss is not confirmed again
+}
+
+func TestMonitoredDeviceWithSnapshotHitAndLiveMissIsDisconnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.devices.device.Attributes = []models.Attribute{{Key: "monitor_connection_state", Value: "true"}}
+	setup.verne.topics[guardDeviceTopic] = true
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 1, 0, 0)
+}
+
+func TestDeviceConfirmErrorPreventsConnect(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.verne.topics[guardDeviceTopic] = true
+	setup.verne.confirmErr = errors.New("broker unavailable")
+	if _, err := setup.worker.runDeviceCheck(); err == nil {
+		t.Error("expected the confirm error to be returned")
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+}
+
+func TestDeviceConnectWithoutExpectedSubscriptionSkipsConfirm(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.withLastMessages(true)
+	setup.worker.deviceTypeProvider = guardDeviceTypes{deviceClassId: "no-sub"}
+	setup.worker.config.DeviceClassesWithoutExpectedSubscriptions = []string{"no-sub"}
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 1, 0, 0, 0)
+	setup.expectConfirmCalls(t, 0)
+}
+
+// a failed snapshot check leaves the verdict to the last message check alone
+func TestDeviceConnectWithSnapshotErrorSkipsConfirm(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.withLastMessages(true)
+	setup.verne.checkErr = errors.New("snapshot too old")
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 1, 0, 0, 0)
+	setup.expectConfirmCalls(t, 0)
+}
+
+func TestDeviceConnectWithSubscriptionNoLongerExpectedIsConnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.worker.deviceTypeProvider = &guardSwitchingDeviceTypes{laterDeviceClassId: "no-sub"}
+	setup.worker.config.DeviceClassesWithoutExpectedSubscriptions = []string{"no-sub"}
+	setup.verne.topics[guardDeviceTopic] = true
+	if _, err := setup.worker.runDeviceCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 1, 0, 0, 0)
+	setup.expectConfirmCalls(t, 0)
+}
+
+func TestCheckDeviceStateConfirmsSnapshotConnect(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.verne.topics[guardDeviceTopic] = true
+	if err := setup.worker.CheckDeviceState("d1", 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+}
+
+func TestCheckDeviceStateConnectWithExternalSubResultSkipsConfirm(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	if err := setup.worker.CheckDeviceState("d1", 0, 1); err != nil {
 		t.Fatal(err)
 	}
 	setup.expectLogged(t, 1, 0, 0, 0)
@@ -339,10 +458,50 @@ func TestHubConfirmErrorPreventsDisconnect(t *testing.T) {
 	setup.expectLogged(t, 0, 0, 0, 0)
 }
 
-func TestHubConnectSkipsConfirm(t *testing.T) {
+func TestHubSnapshotHitWithLiveHitIsConnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.verne.clients["h1"] = true
+	setup.verne.liveClients["h1"] = true
+	if _, err := setup.worker.runHubCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 1, 0)
+	setup.expectConfirmCalls(t, 1)
+}
+
+func TestHubSnapshotHitWithLiveMissIsNotConnected(t *testing.T) {
 	setup := newGuardSetup(models.ConnectionStateOffline)
 	setup.verne.clients["h1"] = true
 	if _, err := setup.worker.runHubCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+	setup.expectConfirmCalls(t, 1)
+}
+
+func TestUnknownHubWithSnapshotHitAndLiveMissIsDisconnected(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateUnknown)
+	setup.verne.clients["h1"] = true
+	if _, err := setup.worker.runHubCheck(); err != nil {
+		t.Fatal(err)
+	}
+	setup.expectLogged(t, 0, 0, 0, 1)
+	setup.expectConfirmCalls(t, 1)
+}
+
+func TestHubConfirmErrorPreventsConnect(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	setup.verne.clients["h1"] = true
+	setup.verne.confirmErr = errors.New("broker unavailable")
+	if _, err := setup.worker.runHubCheck(); err == nil {
+		t.Error("expected the confirm error to be returned")
+	}
+	setup.expectLogged(t, 0, 0, 0, 0)
+}
+
+func TestHubConnectOutsideVerneSkipsConfirm(t *testing.T) {
+	setup := newGuardSetup(models.ConnectionStateOffline)
+	if err := setup.worker.updateHubState(setup.hubs.hub, true, false); err != nil {
 		t.Fatal(err)
 	}
 	setup.expectLogged(t, 0, 0, 1, 0)
