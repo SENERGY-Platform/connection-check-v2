@@ -44,11 +44,10 @@ func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (re
 	}
 	mongoUrl := "mongodb://" + mongoIp + ":27017"
 
-	_, influxip, err := Influxdb(ctx, wg)
+	_, postgresip, err := Timescale(ctx, wg)
 	if err != nil {
 		return repoUrl, kafkaUrl, err
 	}
-	influxUrl := "http://" + influxip + ":8086"
 
 	_, permV2Ip, err := PermissionsV2(ctx, wg, mongoUrl, kafkaUrl)
 	if err != nil {
@@ -62,7 +61,7 @@ func DeviceRepoWithDependencies(basectx context.Context, wg *sync.WaitGroup) (re
 	}
 	repoUrl = "http://" + repoIp + ":8080"
 
-	err = ConnectionLogWorker(ctx, wg, kafkaUrl, mongoUrl, influxUrl, repoUrl)
+	err = ConnectionLogWorker(ctx, wg, kafkaUrl, mongoUrl, postgresip, repoUrl)
 	if err != nil {
 		return repoUrl, kafkaUrl, err
 	}
