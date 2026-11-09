@@ -77,12 +77,13 @@ func (this *Worker) runHubCheck() (resets int, err error) {
 	hub := models.ExtendedHub{}
 	hub, resets, err = this.hubprovider.GetNextHub()
 	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
-		this.config.GetLogger().Error("no hub to check found", "error", err)
+		this.logNothingToCheck(&this.noHubToCheck, "no hub to check found")
 		return resets, nil
 	}
 	if err != nil {
 		return resets, err
 	}
+	this.noHubToCheck = false
 	if this.config.TopicGenerator == "lorawan" {
 		if this.chirpGateway == nil || this.chirpTenant == nil {
 			this.config.GetLogger().Error("no connection check provider available", "hubId", hub.Id)

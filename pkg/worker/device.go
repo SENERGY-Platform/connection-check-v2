@@ -51,6 +51,8 @@ type Worker struct {
 	minimalRecheckWait time.Duration
 	chirpGateway       api.GatewayServiceClient
 	chirpTenant        api.TenantServiceClient
+	noDeviceToCheck    bool
+	noHubToCheck       bool
 }
 
 func New(config configuration.Config, logger ConnectionLogger, deviceprovider DeviceProvider, hubprovider HubProvider, deviceTypeProvider DeviceTypeProvider, lmProvider LastMessageProvider, verne Verne, metrics *prometheus.Metrics, chirpGateway api.GatewayServiceClient, chirpTenant api.TenantServiceClient) (*Worker, error) {
@@ -173,6 +175,16 @@ func getErrorHandler(config configuration.Config) func(error) {
 	}
 }
 
+// An instance without a device or hub of its protocols ends every check here, so only entering that state is logged at info.
+func (this *Worker) logNothingToCheck(alreadyLogged *bool, msg string) {
+	if *alreadyLogged {
+		this.config.GetLogger().Debug(msg)
+		return
+	}
+	*alreadyLogged = true
+	this.config.GetLogger().Info(msg)
+}
+
 func getLogErrorHandler() func(error) {
 	return func(err error) {
 		if err != nil {
@@ -205,12 +217,13 @@ func (this *Worker) runDeviceCheck() (resets int, err error) {
 	var device model.ExtendedDevice
 	device, resets, err = this.deviceprovider.GetNextDevice()
 	if errors.Is(err, providers.BatchNoMatchAfterMultipleResets) {
-		this.config.GetLogger().Error("no device to check found", "error", err)
+		this.logNothingToCheck(&this.noDeviceToCheck, "no device to check found")
 		return resets, nil
 	}
 	if err != nil {
 		return resets, err
 	}
+	this.noDeviceToCheck = false
 	isOnline, subFromSnapshot, err := this.getDeviceState(device, 0, 0)
 	if err != nil {
 		if errors.Is(err, noStateChecksErr) {
